@@ -33,6 +33,11 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/review_core", "src/context_engine"]
+exclude = ["__pycache__", "*.pyc"]
+
+# The review skills sit beside the package, where review_core.cli.DEFAULT_SKILLS looks.
+[tool.hatch.build.targets.wheel.force-include]
+"src/plugin/skills" = "plugin/skills"
 
 [tool.uv]
 # Every Python dependency is at least two weeks old when resolved.
@@ -42,12 +47,14 @@ default-groups = ["dev"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
-markers = ["docker: needs local Docker and Harbor"]
+markers = ["docker: needs local Docker and Harbor", "slow: builds a wheel"]
 addopts = "-m 'not docker'"
 
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# A vendored copy of general-environments' OKF tool, kept byte-identical to its source.
+extend-exclude = ["src/review_core/context/okf_tool"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]

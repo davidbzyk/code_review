@@ -1,0 +1,57 @@
+name: code-review
+description: Review a pull request with a team of Codex review agents and post the findings.
+inputs:
+  auth:
+    description: "How Codex signs in: subscription (a ChatGPT login) or api-key."
+    default: subscription
+  model:
+    description: Codex model for every agent of the review.
+    default: gpt-6-luna
+  effort:
+    description: Reasoning effort.
+    default: high
+  codex-version:
+    description: The Codex CLI version to install.
+    default: "0.161.0"
+  codex-auth-json-b64:
+    description: base64 of a signed-in ~/.codex/auth.json (auth subscription).
+    default: ""
+  openai-api-key:
+    description: An OpenAI API key (auth api-key).
+    default: ""
+  github-token:
+    description: Token that may write pull request reviews and comments.
+    required: true
+  dry-run:
+    description: Write the review payloads to this folder instead of posting them.
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Install Codex
+      shell: bash
+      env:
+        CODEX_VERSION: ${{ inputs.codex-version }}
+      run: npm install -g "@openai/codex@${CODEX_VERSION}" && codex --version
+    - name: Review and post
+      shell: bash
+      env:
+        CR_AUTH: ${{ inputs.auth }}
+        CR_MODEL: ${{ inputs.model }}
+        CR_EFFORT: ${{ inputs.effort }}
+        CR_BASE: ${{ github.event.pull_request.base.sha }}
+        CR_HEAD: ${{ github.event.pull_request.head.sha }}
+        CR_REPO: ${{ github.repository }}
+        CR_PR: ${{ github.event.pull_request.number }}
+        CR_DRY_RUN: ${{ inputs.dry-run }}
+        CODEX_AUTH_JSON_B64: ${{ inputs.codex-auth-json-b64 }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: bash "$GITHUB_ACTION_PATH/run-review.sh"
+    - name: Keep the run folder
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-review-run
+        path: ${{ runner.temp }}/code-review/runs
+        if-no-files-found: ignore
