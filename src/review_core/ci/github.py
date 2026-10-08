@@ -37,6 +37,7 @@ from review_core.contracts.models import (
 
 API = "https://api.github.com"
 TITLE = "Custom Code Review"  # the heading of the review and the summary; --title changes it
+BOT = "github-actions[bot]"  # who posts; only its own markers count as already posted
 SUMMARY_MARKER = "<!-- code-review-summary -->"
 MAX_BODY = 60_000  # GitHub refuses a review body over 65,536 characters
 # Badge colours per severity: data, so a new level is a row here.
@@ -323,7 +324,8 @@ def _pages(request: Callable, url: str, token: str, limit: int = 50) -> list[dic
 
 def publish(doc: dict, diff: str, *, head: str, repo: str, pr: int, change_summary: str | None,
             token: str, dry_run: Path | None = None, request: Callable = _request,
-            api: str = API, secrets: list[str] = (), title: str = TITLE) -> None:  # fmt: skip
+            api: str = API, secrets: list[str] = (), title: str = TITLE,
+            bot: str = BOT) -> None:  # fmt: skip
     """Post the review and create or edit the summary comment; with dry_run, write them instead.
 
     Raises CredentialInOutput, before any call, when the text holds one of `secrets`.
@@ -332,7 +334,8 @@ def publish(doc: dict, diff: str, *, head: str, repo: str, pr: int, change_summa
     posted = set()
     if dry_run is None:
         url = f"{api}/repos/{repo}/pulls/{pr}/comments"
-        posted = posted_fingerprints([c.get("body", "") for c in _pages(request, url, token)])
+        ours = [c for c in _pages(request, url, token) if (c.get("user") or {}).get("login") == bot]
+        posted = posted_fingerprints([c.get("body", "") for c in ours])
     payload = review_payload(doc, diff, head=head, repo=repo, title=title, posted=posted)
     summary = render_summary(doc, head=head, repo=repo, change_summary=change_summary,
                              title=title)  # fmt: skip
@@ -405,6 +408,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--summary", type=Path, help="the change summary the orchestrator wrote")
     p.add_argument("--dry-run", type=Path, help="write the payloads here; send nothing")
     p.add_argument("--title", default=TITLE, help="heading of the review and the summary")
+    p.add_argument("--bot", default=BOT, help="login the reviews are posted as")
     p.add_argument("--secret-file", type=Path, action="append", default=[],
                    help="a login file whose values must never be posted; repeat")  # fmt: skip
     p.add_argument("--secret-env", action="append", default=[],
@@ -419,7 +423,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         publish(doc, pr_diff(args.repo_dir, args.base, args.head), head=args.head,
                 repo=args.repo, pr=args.pr, change_summary=summary, token=token,
-                dry_run=args.dry_run, secrets=secrets, title=args.title)  # fmt: skip
+                dry_run=args.dry_run, secrets=secrets, title=args.title,
+                bot=args.bot)  # fmt: skip
     except CredentialInOutput as exc:
         print(f"code-review: {exc}; nothing was posted", file=sys.stderr)
         return 3

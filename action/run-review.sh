@@ -70,5 +70,6 @@ if [ -n "${CODEX_HOME:-}" ]; then
 fi
 if [ -n "${CR_DRY_RUN:-}" ]; then post+=(--dry-run "$CR_DRY_RUN"); fi
 if [ -n "${CR_TITLE:-}" ]; then post+=(--title "$CR_TITLE"); fi
+if [ -n "${CR_BOT:-}" ]; then post+=(--bot "$CR_BOT"); fi
 (cd "$here" && "${post[@]}")
 exit "$status"
