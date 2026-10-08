@@ -90,3 +90,15 @@ def test_a_row_lets_commands_reach_the_network_only_when_it_says_so():
     assert registry["codex-net"].permissions.network and not registry["codex"].permissions.network
     same = [a for a in registry["codex-net"].argv if a not in ("-c", flag)]
     assert same == [a for a in registry["codex"].argv if a != "-c"]
+# Signed in with a ChatGPT subscription, Codex also loads the account's connected apps. In CI
+# run 37839209776 (plugins #223) a reviewer called Desktop Commander on the owner's Mac through
+# them. An agent that reads untrusted pull request text must reach none of these.
+OFF_FOR_REVIEW = ("apps", "computer_use", "browser_use", "browser_use_external", "plugins",
+                  "remote_plugin", "memories", "image_generation")  # fmt: skip
+
+
+@pytest.mark.parametrize("name", ["codex-clean", "codex-key"])
+def test_review_rows_switch_off_account_apps_and_computer_use(name):
+    argv = load_registry()[name].argv
+    disabled = {argv[i + 1] for i, word in enumerate(argv) if word == "--disable"}
+    assert set(OFF_FOR_REVIEW) <= disabled, sorted(set(OFF_FOR_REVIEW) - disabled)

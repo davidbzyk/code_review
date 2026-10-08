@@ -67,11 +67,17 @@ network = true
 # The same as codex-net, with the host's own skills switched off: the plugins installed in the
 # owner's Codex home and the skills Codex ships with. Without the two switches every agent of a
 # run is shown those as well (82 skills listed against our 9, measured 2026-10-06), though the
-# run's own home holds only ours.
+# run's own home holds only ours. The account's connected apps, computer use, browser use and
+# memories are off too: signed in with a subscription, Codex otherwise hands every reviewer the
+# account's apps (CI run 37839209776 reached for Desktop Commander on the owner's Mac). Flags
+# probed on 0.161.0 with `codex --disable <feature> features list`.
 [codex-clean]
 argv = [
   "codex", "exec", "--json", "--ignore-user-config", "--skip-git-repo-check",
   "--disable", "plugins", "-c", "skills.bundled.enabled=false",
+  "--disable", "apps", "--disable", "remote_plugin", "--disable", "computer_use",
+  "--disable", "browser_use", "--disable", "browser_use_external", "--disable", "memories",
+  "--disable", "image_generation",
   "-s", "{sandbox}", "-C", "{workdir}", "-m", "{model}",
   "-c", "model_reasoning_effort={effort}",
   "-c", "agents.max_threads=12",
@@ -107,6 +113,9 @@ network = true
 argv = [
   "codex", "exec", "--json", "--ignore-user-config", "--skip-git-repo-check",
   "--disable", "plugins", "-c", "skills.bundled.enabled=false",
+  "--disable", "apps", "--disable", "remote_plugin", "--disable", "computer_use",
+  "--disable", "browser_use", "--disable", "browser_use_external", "--disable", "memories",
+  "--disable", "image_generation",
   "-c", 'shell_environment_policy.exclude=["CODEX_API_KEY","OPENAI_API_KEY"]',
   "-c", "shell_environment_policy.ignore_default_excludes=false",
   "-s", "{sandbox}", "-C", "{workdir}", "-m", "{model}",

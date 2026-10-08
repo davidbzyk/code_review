@@ -33,6 +33,15 @@ runs:
       env:
         CODEX_VERSION: ${{ inputs.codex-version }}
       run: npm install -g "@openai/codex@${CODEX_VERSION}" && codex --version
+    - name: Let Codex sandbox its commands
+      if: runner.os == 'Linux'
+      shell: bash
+      # Ubuntu 24.04 blocks the unprivileged user namespaces bubblewrap needs ("bwrap: setting up
+      # uid map: Permission denied"), so no reviewer could run a command; allow them on this VM.
+      run: |
+        if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null)" = 1 ]; then
+          sudo -n sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+        fi
     - name: Review and post
       shell: bash
       env:

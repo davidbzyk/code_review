@@ -92,3 +92,9 @@ def test_run_review_sh_skips_a_change_that_only_touches_the_tool(workdir, tmp_pa
                           capture_output=True, text=True)  # fmt: skip
     assert done.returncode == 0, done.stderr
     assert "nothing to review" in done.stdout
+
+
+def test_the_action_lets_codex_sandbox_before_the_review():
+    text = (ROOT / "action" / "action.yml").read_text()
+    allow = text.index("kernel.apparmor_restrict_unprivileged_userns=0")
+    assert allow < text.index("name: Review and post")
