@@ -431,3 +431,12 @@ def test_every_function_of_the_poster_has_a_docstring():
     missing = [n.name for n in ast.walk(tree)
                if isinstance(n, ast.FunctionDef) and not ast.get_docstring(n)]  # fmt: skip
     assert missing == []
+
+
+def test_a_cut_comment_keeps_its_marker_even_with_a_huge_title():
+    huge = finding(title="T" * 30_000, description="word " * 40_000)
+    body = gh.review_payload(review_doc([huge]), DIFF, head=HEAD, repo="o/r")["comments"][0]["body"]
+    assert len(body) <= gh.MAX_COMMENT
+    assert body.rstrip().endswith(
+        gh._marker(load_run_envelope(review_doc([huge])).findings[0], HEAD)
+    )

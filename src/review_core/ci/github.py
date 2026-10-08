@@ -147,7 +147,12 @@ def render_inline(finding: Finding, head: str) -> str:
         return text
     room = max(0, len(finding.description) - (len(text) - MAX_COMMENT) // 2 - 200)
     short = finding.description[:room].rstrip() + " ... (cut to fit one comment)"
-    return _inline(dataclasses.replace(finding, description=short), head)[:MAX_COMMENT]
+    text = _inline(dataclasses.replace(finding, description=short), head)
+    if len(text) <= MAX_COMMENT:
+        return text
+    # Still too long (a huge title or path): cut the text, never the marker that stops reposts.
+    marker = _marker(finding, head)
+    return text[: MAX_COMMENT - len(marker) - 2].rstrip() + "\n\n" + marker
 
 
 def _inline(finding: Finding, head: str) -> str:

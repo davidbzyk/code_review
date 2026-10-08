@@ -1,4 +1,4 @@
-# Added by code-review's install script. The tool itself is in .code-review/.
+# The review tool is in .code-review/; refresh it by running the installer again, never by hand.
 name: Code review
 
 on:
