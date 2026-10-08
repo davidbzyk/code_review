@@ -28,7 +28,7 @@ fi
 # One input picks the login: the ChatGPT subscription (a seeded auth.json) or an API key.
 case "${CR_AUTH:-subscription}" in
   subscription)
-    runner=codex-clean
+    runner=codex-ci
     : "${CODEX_AUTH_JSON_B64:?auth is subscription: set the CODEX_AUTH_JSON_B64 secret}"
     export CODEX_HOME="$work/codex-home"
     mkdir -p "$CODEX_HOME"
@@ -38,7 +38,7 @@ case "${CR_AUTH:-subscription}" in
     cp -p "$CODEX_HOME/auth.json" "$work/auth.seed.json"
     unset CODEX_AUTH_JSON_B64 OPENAI_API_KEY ;;
   api-key)
-    runner=codex-key
+    runner=codex-ci-key
     : "${OPENAI_API_KEY:?auth is api-key: set the OPENAI_API_KEY secret}"
     unset CODEX_AUTH_JSON_B64 ;;
   *) echo "code-review: auth must be subscription or api-key, not ${CR_AUTH}" >&2; exit 2 ;;

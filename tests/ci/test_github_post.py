@@ -169,13 +169,16 @@ def test_publish_posts_the_review_and_edits_an_existing_summary_in_place():
     def request(method, url, token, body=None):
         calls.append((method, url))
         if method == "GET":
-            return [{"id": 5, "body": "other"}, {"id": 9, "body": gh.SUMMARY_MARKER + "\nold"}]
+            return [{"id": 5, "body": "other"},
+                    {"id": 9, "body": gh.SUMMARY_MARKER + "\nold",
+                     "user": {"login": "github-actions[bot]"}}]  # fmt: skip
         return {}
 
     gh.publish(review_doc([finding()]), DIFF, head=HEAD, repo="o/r", pr=7, change_summary=None,
                token="t", request=request)  # fmt: skip
     assert calls == [
         ("GET", "https://api.github.com/repos/o/r/pulls/7/comments?per_page=100&page=1"),
+        ("GET", "https://api.github.com/repos/o/r/pulls/7/reviews?per_page=100&page=1"),
         ("POST", "https://api.github.com/repos/o/r/pulls/7/reviews"),
         ("GET", "https://api.github.com/repos/o/r/issues/7/comments?per_page=100&page=1"),
         ("PATCH", "https://api.github.com/repos/o/r/issues/comments/9"),
@@ -191,7 +194,8 @@ def test_an_added_line_that_starts_with_two_pluses_is_content_not_a_file_header(
 def test_the_summary_is_found_past_the_first_page_of_comments():
     calls = []
     pages = {1: [{"id": n, "body": "other"} for n in range(100)],
-             2: [{"id": 500, "body": gh.SUMMARY_MARKER + "\nold"}], 3: []}  # fmt: skip
+             2: [{"id": 500, "body": gh.SUMMARY_MARKER + "\nold",
+                  "user": {"login": "github-actions[bot]"}}], 3: []}  # fmt: skip
 
     def request(method, url, token, body=None):
         calls.append((method, url))
@@ -361,3 +365,37 @@ def test_a_marker_posted_by_anyone_but_the_bot_suppresses_nothing():
                token="t", request=request)  # fmt: skip
     review = next(b for m, u, b in calls if m == "POST" and u.endswith("/reviews"))
     assert len(review["comments"]) == 1
+
+
+def test_an_off_diff_finding_already_in_a_bot_review_body_is_not_posted_again():
+    calls = []
+    far = finding(line_start=40, line_end=41, title="Far away", fingerprint="e" * 64)
+    earlier = gh.review_payload(review_doc([far]), DIFF, head="a" * 40, repo="o/r")["body"]
+
+    def request(method, url, token, body=None):
+        calls.append((method, url, body))
+        if method == "GET" and url.split("?")[0].endswith("/pulls/7/reviews"):
+            return [{"id": 3, "body": earlier, "user": {"login": "github-actions[bot]"}}]
+        return [] if method == "GET" else {}
+
+    gh.publish(review_doc([far]), DIFF, head=HEAD, repo="o/r", pr=7, change_summary=None,
+               token="t", request=request)  # fmt: skip
+    review = next(b for m, u, b in calls if m == "POST" and u.endswith("/reviews"))
+    assert "Far away" not in review["body"]
+    assert "1 already posted on an earlier commit" in review["body"]
+
+
+def test_a_summary_marker_posted_by_someone_else_is_never_edited():
+    calls = []
+    forged = {"id": 9, "body": gh.SUMMARY_MARKER + "\nmine", "user": {"login": "someone"}}
+
+    def request(method, url, token, body=None):
+        calls.append((method, url))
+        if method == "GET" and "/issues/7/comments" in url:
+            return [forged]
+        return [] if method == "GET" else {}
+
+    gh.publish(review_doc([finding()]), DIFF, head=HEAD, repo="o/r", pr=7, change_summary=None,
+               token="t", request=request)  # fmt: skip
+    assert ("PATCH", "https://api.github.com/repos/o/r/issues/comments/9") not in calls
+    assert calls[-1] == ("POST", "https://api.github.com/repos/o/r/issues/7/comments")

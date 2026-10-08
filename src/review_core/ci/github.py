@@ -137,8 +137,13 @@ def render_inline(finding: Finding, head: str) -> str:
     for para in _description(finding.description):
         lines += [_inert(para), ""]
     lines += _prompt(finding)
+    return "\n".join([*lines, "", _marker(finding, head)])
+
+
+def _marker(finding: Finding, head: str) -> str:
+    """The hidden line later runs read to know this finding is already on the pull request."""
     marker = json.dumps({"fingerprint": finding.fingerprint, "head": head}, sort_keys=True)
-    return "\n".join([*lines, "", f"<!-- code-review:v1 {marker} -->"])
+    return f"<!-- code-review:v1 {marker} -->"
 
 
 def _ordered(findings) -> list[Finding]:
@@ -220,6 +225,7 @@ def review_payload(doc: dict, diff: str, *, head: str, repo: str, title: str = T
             block = ["", "---", "", _permalink(repo, head, finding), "", _heading(finding), "",
                      _meta(finding), ""]  # fmt: skip
             block += [_inert(p) for p in _description(finding.description)]
+            block += ["", _marker(finding, head)]
             note = ["", f"{len(outside) - shown} more findings are in the run folder."]
             if len("\n".join([*body, *block, *note, *tail])) > MAX_BODY:
                 body += note
@@ -334,7 +340,11 @@ def publish(doc: dict, diff: str, *, head: str, repo: str, pr: int, change_summa
     posted = set()
     if dry_run is None:
         url = f"{api}/repos/{repo}/pulls/{pr}/comments"
-        ours = [c for c in _pages(request, url, token) if (c.get("user") or {}).get("login") == bot]
+        # Inline comments and review bodies (off-diff findings) both carry markers; only the
+        # bot's own count, so a marker pasted by anyone else suppresses nothing.
+        found = [*_pages(request, url, token),
+                 *_pages(request, f"{api}/repos/{repo}/pulls/{pr}/reviews", token)]  # fmt: skip
+        ours = [c for c in found if (c.get("user") or {}).get("login") == bot]
         posted = posted_fingerprints([c.get("body", "") for c in ours])
     payload = review_payload(doc, diff, head=head, repo=repo, title=title, posted=posted)
     summary = render_summary(doc, head=head, repo=repo, change_summary=change_summary,
@@ -348,7 +358,8 @@ def publish(doc: dict, diff: str, *, head: str, repo: str, pr: int, change_summa
         return
     request("POST", f"{api}/repos/{repo}/pulls/{pr}/reviews", token, payload)
     comments = _pages(request, f"{api}/repos/{repo}/issues/{pr}/comments", token)
-    ours = [c for c in comments if str(c.get("body", "")).startswith(SUMMARY_MARKER)]
+    ours = [c for c in comments if (c.get("user") or {}).get("login") == bot
+            and str(c.get("body", "")).startswith(SUMMARY_MARKER)]  # fmt: skip
     if ours:
         request("PATCH", f"{api}/repos/{repo}/issues/comments/{ours[-1]['id']}", token,
                 {"body": summary})  # fmt: skip

@@ -50,7 +50,7 @@ def files() -> list[str]:
         if (path.is_file() and not path.is_symlink() and not path.name.endswith(SKIP_SUFFIXES)
                 and not SKIP_NAMES & set(rel.parts)):  # fmt: skip
             found.add(rel.as_posix())
-    found |= {"action/action.yml", "action/run-review.sh", "action/ruff.toml"}
+    found |= {"action/action.yml", "action/run-review.sh", "action/ruff.toml", "action/README.md"}
     return sorted(found)
 
 

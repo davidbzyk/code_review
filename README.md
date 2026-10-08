@@ -15,6 +15,13 @@ Status: staging. Built from the `agentic-tooling/code-review` experiment; not pu
 This puts `code-review` on your PATH. The vector context provider needs the `context` extra:
 `uv tool install "code-review[context] @ git+<repo-url>"`.
 
+## Add the review to a repository's CI
+
+    sh action/install.sh /path/to/your/repo
+
+Then sign Codex in with a ChatGPT subscription or an OpenAI API key; both are described in
+[`action/README.md`](action/README.md), which the installer also copies into the repository.
+
 ## Layout
 
 - `src/review_core/`: the launcher, runner registry (`launcher/runners.toml`), the reviewers'

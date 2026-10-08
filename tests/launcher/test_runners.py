@@ -104,3 +104,14 @@ def test_review_rows_switch_off_account_apps_and_computer_use(name):
     argv = load_registry()[name].argv
     disabled = {argv[i + 1] for i, word in enumerate(argv) if word == "--disable"}
     assert set(OFF_FOR_REVIEW) <= disabled, sorted(set(OFF_FOR_REVIEW) - disabled)
+
+
+@pytest.mark.parametrize("name", ["codex-ci", "codex-ci-key"])
+def test_ci_rows_give_reviewer_commands_no_network(name):
+    # The reviewers can read the Codex login or key on a CI runner; with no network for their
+    # commands they cannot send it anywhere. Codex's own model calls are not sandboxed.
+    entry = load_registry()[name]
+    assert entry.permissions.network is False
+    assert not any("network_access=true" in word for word in entry.argv)
+    disabled = {entry.argv[i + 1] for i, w in enumerate(entry.argv) if w == "--disable"}
+    assert set(OFF_FOR_REVIEW) <= disabled

@@ -144,3 +144,71 @@ copy_to = "{home}/.agents/skills"
 sandbox = "workspace-write"
 writable_roots = ["{workdir}"]
 network = true
+
+
+# The review rows for CI runners: codex-clean and codex-key with no network for the reviewers'
+# commands. On a runner the reviewers can read the Codex login or key (the sandbox limits writes,
+# not reads); without network a misled reviewer cannot send it anywhere. Codex's own calls to the
+# model are made by Codex, outside the sandbox, so the review still runs.
+[codex-ci]
+argv = [
+  "codex", "exec", "--json", "--ignore-user-config", "--skip-git-repo-check",
+  "--disable", "plugins", "-c", "skills.bundled.enabled=false",
+  "--disable", "apps", "--disable", "remote_plugin", "--disable", "computer_use",
+  "--disable", "browser_use", "--disable", "browser_use_external", "--disable", "memories",
+  "--disable", "image_generation",
+  "-s", "{sandbox}", "-C", "{workdir}", "-m", "{model}",
+  "-c", "model_reasoning_effort={effort}",
+  "-c", "agents.max_threads=12",
+  "-o", "{last_message}", "{prompt}",
+]
+stdin = "closed"
+metadata = "codex_rollout"
+pass_env = ["PATH", "LANG", "LC_ALL", "TERM", "TZ", "SSL_CERT_FILE", "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"]
+
+[codex-ci.env]
+HOME = "{home}"
+CODEX_HOME = "{codex_home}"
+
+[codex-ci.skills]
+copy_to = "{home}/.agents/skills"
+
+[codex-ci.permissions]
+sandbox = "workspace-write"
+writable_roots = ["{workdir}"]
+network = false
+
+[codex-ci-key]
+argv = [
+  "codex", "exec", "--json", "--ignore-user-config", "--skip-git-repo-check",
+  "--disable", "plugins", "-c", "skills.bundled.enabled=false",
+  "--disable", "apps", "--disable", "remote_plugin", "--disable", "computer_use",
+  "--disable", "browser_use", "--disable", "browser_use_external", "--disable", "memories",
+  "--disable", "image_generation",
+  "-c", 'shell_environment_policy.exclude=["CODEX_API_KEY","OPENAI_API_KEY"]',
+  "-c", "shell_environment_policy.ignore_default_excludes=false",
+  "-s", "{sandbox}", "-C", "{workdir}", "-m", "{model}",
+  "-c", "model_reasoning_effort={effort}",
+  "-c", "agents.max_threads=12",
+  "-o", "{last_message}", "{prompt}",
+]
+stdin = "closed"
+metadata = "codex_rollout"
+pass_env = ["PATH", "LANG", "LC_ALL", "TERM", "TZ", "SSL_CERT_FILE", "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY"]
+# Codex refuses a CODEX_HOME that does not exist, so the launcher makes it.
+make_dirs = ["{home}/.codex"]
+
+[codex-ci-key.env]
+HOME = "{home}"
+CODEX_HOME = "{home}/.codex"
+
+[codex-ci-key.secrets]
+CODEX_API_KEY = "OPENAI_API_KEY"
+
+[codex-ci-key.skills]
+copy_to = "{home}/.agents/skills"
+
+[codex-ci-key.permissions]
+sandbox = "workspace-write"
+writable_roots = ["{workdir}"]
+network = false

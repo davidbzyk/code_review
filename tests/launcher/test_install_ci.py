@@ -17,6 +17,8 @@ def test_install_copies_the_tool_skills_action_and_workflow_and_nothing_else(wor
     dest = bundle.install(workdir)
     assert (dest / "action.yml").is_file() and (dest / "run-review.sh").is_file()
     assert (dest / "ruff.toml").is_file()  # a host's ruff lints the copy with its own settings
+    readme = (dest / "README.md").read_text()  # setup for both sign-ins travels with the tool
+    assert "CODEX_AUTH_JSON_B64" in readme and "CODE_REVIEW_AUTH -b api-key" in readme
     assert (dest / "src" / "review_core" / "cli.py").is_file()
     assert (dest / "src" / "review_core" / "launcher" / "runners.toml").is_file()
     assert (dest / "src" / "plugin" / "skills" / "review-orchestrator" / "SKILL.md").is_file()
@@ -200,3 +202,9 @@ def test_the_workflow_pins_actions_by_sha_drops_the_token_and_skips_dependabot()
                 assert len(ref) == 40 and all(c in "0123456789abcdef" for c in ref), line
     assert "persist-credentials: false" in workflow
     assert "github.actor != 'dependabot[bot]'" in workflow
+
+
+def test_the_action_reviews_on_the_rows_that_give_commands_no_network():
+    script = (ROOT / "action" / "run-review.sh").read_text()
+    assert "runner=codex-ci\n" in script and "runner=codex-ci-key\n" in script
+    assert "runner=codex-clean" not in script and "runner=codex-key\n" not in script
