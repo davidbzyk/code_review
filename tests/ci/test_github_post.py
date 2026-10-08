@@ -5,6 +5,7 @@ checked with load_run_envelope, so a change to that shape breaks these tests fir
 """
 
 import json
+import os
 
 from review_core.ci import github as gh
 from review_core.contracts.models import load_run_envelope
@@ -243,3 +244,52 @@ def test_a_partial_run_names_the_reviewers_that_did_not_finish():
     doc["envelope"]["reviewers"][1]["outcome"] = "not_run"
     body = gh.review_payload(doc, DIFF, head=HEAD, repo="o/r")["body"]
     assert "Not every reviewer finished: correctness." in body
+
+
+TOKEN = "eyJhbGciOiJSUzI1NiJ9.fake-access-token-value-0123456789"
+
+
+def write_auth(tmp_path):
+    auth = tmp_path / "auth.json"
+    auth.write_text(json.dumps({"auth_mode": "chatgpt", "tokens": {
+        "access_token": TOKEN, "refresh_token": "rt_fake-refresh-token-value-abcdef",
+        "account_id": "acct-1"}}))  # fmt: skip
+    return auth
+
+
+def test_credentials_are_collected_from_the_login_file_and_named_variables(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-proj-fake-api-key-value-0123456789")
+    found = gh.credentials([write_auth(tmp_path)], ["OPENAI_API_KEY", "UNSET_NAME"])
+    assert TOKEN in found and "rt_fake-refresh-token-value-abcdef" in found
+    assert "sk-proj-fake-api-key-value-0123456789" in found
+    assert "acct-1" not in found and "chatgpt" not in found  # too short to be a credential
+
+
+def test_nothing_is_posted_when_the_output_carries_a_credential(tmp_path):
+    calls = []
+    leaked = review_doc([finding(description=f"see {TOKEN} here")])
+    try:
+        gh.publish(leaked, DIFF, head=HEAD, repo="o/r", pr=7, change_summary=None, token="t",
+                   request=lambda *a, **k: calls.append(a), secrets=[TOKEN])  # fmt: skip
+    except gh.CredentialInOutput:
+        pass
+    else:
+        raise AssertionError("a credential in the output must stop the post")
+    assert calls == []
+
+
+def test_a_credential_in_the_change_summary_also_stops_the_post():
+    try:
+        gh.publish(review_doc([]), DIFF, head=HEAD, repo="o/r", pr=7, token="t",
+                   change_summary=f"Token: {TOKEN}", request=lambda *a, **k: None,
+                   secrets=[TOKEN])  # fmt: skip
+    except gh.CredentialInOutput:
+        return
+    raise AssertionError("a credential in the summary must stop the post")
+
+
+def test_a_summary_hardlinked_to_another_file_is_not_read(tmp_path):
+    secret = write_auth(tmp_path)
+    link = tmp_path / "pr-summary.md"
+    os.link(secret, link)
+    assert gh.read_summary(link) is None

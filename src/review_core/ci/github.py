@@ -17,6 +17,7 @@ import argparse
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
 import urllib.parse
@@ -33,7 +34,6 @@ from review_core.contracts.models import (
     Finding,
     load_run_envelope,
 )
-from review_core.launcher.render import read_regular_file
 
 API = "https://api.github.com"
 SUMMARY_MARKER = "<!-- code-review-summary -->"
@@ -215,6 +215,46 @@ def render_summary(doc: dict, *, head: str, change_summary: str | None) -> str:
     return "\n".join(lines) + "\n"
 
 
+MIN_CREDENTIAL = 16  # shorter strings in a login file are ids and modes, not credentials
+
+
+class CredentialInOutput(Exception):
+    """The text about to be posted holds a credential of this run; nothing was posted."""
+
+
+def _strings(value) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return [s for v in value.values() for s in _strings(v)]
+    if isinstance(value, list):
+        return [s for v in value for s in _strings(v)]
+    return []
+
+
+def credentials(files: list[Path], names: list[str]) -> list[str]:
+    """Every credential the run holds: long strings of the login files and the named variables.
+
+    The reviewer agents can read the seeded login (the sandbox limits writes, not reads), so the
+    poster checks its output against these before anything leaves the runner.
+    """
+    found: set[str] = set()
+    for path in files:
+        try:
+            found.update(_strings(json.loads(Path(path).read_text(encoding="utf-8"))))
+        except (OSError, ValueError):
+            continue
+    found.update(os.environ.get(n, "") for n in names)
+    return sorted(s for s in found if len(s) >= MIN_CREDENTIAL)
+
+
+def _check(texts: list[str], secrets: list[str]) -> None:
+    for text in texts:
+        for secret in secrets:
+            if secret in text:
+                raise CredentialInOutput("the review output holds a credential of this run")
+
+
 def _request(method: str, url: str, token: str, body: dict | None = None):
     """One GitHub REST call; returns the parsed JSON response."""
     data = json.dumps(body).encode() if body is not None else None
@@ -229,10 +269,14 @@ def _request(method: str, url: str, token: str, body: dict | None = None):
 
 def publish(doc: dict, diff: str, *, head: str, repo: str, pr: int, change_summary: str | None,
             token: str, dry_run: Path | None = None, request: Callable = _request,
-            api: str = API) -> None:  # fmt: skip
-    """Post the review and create or edit the summary comment; with dry_run, write them instead."""
+            api: str = API, secrets: list[str] = ()) -> None:  # fmt: skip
+    """Post the review and create or edit the summary comment; with dry_run, write them instead.
+
+    Raises CredentialInOutput, before any call, when the text holds one of `secrets`.
+    """
     payload = review_payload(doc, diff, head=head, repo=repo)
     summary = render_summary(doc, head=head, change_summary=change_summary)
+    _check([*_strings(payload), summary, change_summary or ""], list(secrets))
     if dry_run is not None:
         dry_run.mkdir(parents=True, exist_ok=True)
         (dry_run / "review.json").write_text(json.dumps(payload, indent=2) + "\n")
@@ -266,11 +310,24 @@ def pr_diff(repo_dir: Path, base: str, head: str) -> str:
 def read_summary(path: Path) -> str | None:
     """The change summary the orchestrator wrote, or None.
 
-    An agent writes that file, so a link (say, to the seeded Codex login) or an oversized file
-    is refused rather than followed into a public comment.
+    An agent writes that file, so a symbolic link, a second hard link to another file (say, the
+    seeded Codex login) or an oversized file is refused rather than read into a public comment.
     """
-    data = read_regular_file(path, MAX_SUMMARY_BYTES)
-    return data.decode("utf-8", errors="replace") if data is not None else None
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        return None
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > MAX_SUMMARY_BYTES:
+            return None
+        with os.fdopen(os.dup(fd), "rb") as handle:
+            data = handle.read(MAX_SUMMARY_BYTES + 1)
+    except OSError:
+        return None
+    finally:
+        os.close(fd)
+    return data.decode("utf-8", errors="replace") if len(data) <= MAX_SUMMARY_BYTES else None
 
 
 def find_run(runs: Path) -> Path:
@@ -291,14 +348,24 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--pr", type=int, required=True)
     p.add_argument("--summary", type=Path, help="the change summary the orchestrator wrote")
     p.add_argument("--dry-run", type=Path, help="write the payloads here; send nothing")
+    p.add_argument("--secret-file", type=Path, action="append", default=[],
+                   help="a login file whose values must never be posted; repeat")  # fmt: skip
+    p.add_argument("--secret-env", action="append", default=[],
+                   help="a variable whose value must never be posted; repeat")  # fmt: skip
     args = p.parse_args(argv)
     doc = json.loads(find_run(args.runs).read_text(encoding="utf-8"))
     summary = read_summary(args.summary) if args.summary else None
     token = os.environ.get("GITHUB_TOKEN", "")
     if args.dry_run is None and not token:
         raise SystemExit("GITHUB_TOKEN is not set (use --dry-run to post nothing)")
-    publish(doc, pr_diff(args.repo_dir, args.base, args.head), head=args.head, repo=args.repo,
-            pr=args.pr, change_summary=summary, token=token, dry_run=args.dry_run)  # fmt: skip
+    secrets = credentials(args.secret_file, [*args.secret_env, "GITHUB_TOKEN"])
+    try:
+        publish(doc, pr_diff(args.repo_dir, args.base, args.head), head=args.head,
+                repo=args.repo, pr=args.pr, change_summary=summary, token=token,
+                dry_run=args.dry_run, secrets=secrets)  # fmt: skip
+    except CredentialInOutput as exc:
+        print(f"code-review: {exc}; nothing was posted", file=sys.stderr)
+        return 3
     return 0
 
 

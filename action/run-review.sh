@@ -27,6 +27,8 @@ case "${CR_AUTH:-subscription}" in
     mkdir -p "$CODEX_HOME"
     printf '%s' "$CODEX_AUTH_JSON_B64" | base64 -d > "$CODEX_HOME/auth.json"
     chmod 600 "$CODEX_HOME/auth.json"
+    # Codex refreshes its login during the run; the poster checks against both versions.
+    cp -p "$CODEX_HOME/auth.json" "$work/auth.seed.json"
     unset CODEX_AUTH_JSON_B64 OPENAI_API_KEY ;;
   api-key)
     runner=codex-key
@@ -48,8 +50,13 @@ env -u GITHUB_TOKEN python3 -m review_core.cli review --repo "$repo" --base "$CR
   "${paths[@]}" || status=$?
 
 # A failed run still has a review.json; post it so the pull request shows the failure.
+# The agents could read the login; the poster refuses to post any of its values.
 post=(python3 -m review_core.ci.github --runs "$work/runs" --repo-dir "$repo" --base "$CR_BASE"
-      --head "$CR_HEAD" --repo "$CR_REPO" --pr "$CR_PR" --summary "$work/out/pr-summary.md")
+      --head "$CR_HEAD" --repo "$CR_REPO" --pr "$CR_PR" --summary "$work/out/pr-summary.md"
+      --secret-env OPENAI_API_KEY)
+if [ -n "${CODEX_HOME:-}" ]; then
+  post+=(--secret-file "$CODEX_HOME/auth.json" --secret-file "$work/auth.seed.json")
+fi
 if [ -n "${CR_DRY_RUN:-}" ]; then post+=(--dry-run "$CR_DRY_RUN"); fi
 "${post[@]}"
 exit "$status"
