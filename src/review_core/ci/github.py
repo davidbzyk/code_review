@@ -26,7 +26,13 @@ from pathlib import Path
 
 from review_core.aggregator.cli import MAX_SUMMARY_BYTES
 from review_core.aggregator.report import _clean, _description, _summary, _title
-from review_core.contracts.models import REVIEWERS, SEVERITIES, Finding, load_run_envelope
+from review_core.contracts.models import (
+    REVIEWERS,
+    SEVERITIES,
+    SUCCESS_OUTCOMES,
+    Finding,
+    load_run_envelope,
+)
 from review_core.launcher.render import read_regular_file
 
 API = "https://api.github.com"
@@ -146,6 +152,18 @@ def _counts(findings) -> str:
     return f"{len(findings)} {noun}: " + ", ".join(by) + "."
 
 
+def _outcome(run) -> list[str]:
+    """What the run found, never read as a clean review when reviewers did not finish."""
+    if run.envelope.status == "failed":
+        return ["The review did not complete, so no code was checked. The run folder is kept "
+                "as the workflow's code-review-run artifact."]  # fmt: skip
+    lines = [_counts(run.findings)]
+    unfinished = [r.reviewer for r in run.envelope.reviewers if r.outcome not in SUCCESS_OUTCOMES]
+    if unfinished:
+        lines += ["", f"Not every reviewer finished: {', '.join(unfinished)}."]
+    return lines
+
+
 def review_payload(doc: dict, diff: str, *, head: str, repo: str) -> dict:
     """The body of POST /repos/{repo}/pulls/{n}/reviews for one run."""
     run = load_run_envelope(doc)
@@ -157,8 +175,7 @@ def review_payload(doc: dict, diff: str, *, head: str, repo: str) -> dict:
             outside.append(finding)
         else:
             comments.append({**place, "body": render_inline(finding, head)})
-    body = ["### Code review", "", f"**Reviewed commit:** `{head[:10]}`", "",
-            _counts(run.findings)]  # fmt: skip
+    body = ["### Code review", "", f"**Reviewed commit:** `{head[:10]}`", "", *_outcome(run)]
     env = run.envelope
     tail = ["", "<details><summary>About this review</summary>", "",
             f"Runner {env.runner}, model {env.model}, effort {env.effort}, "
@@ -188,7 +205,7 @@ def render_summary(doc: dict, *, head: str, change_summary: str | None) -> str:
     status = STATUS_WORDS.get(run.envelope.status, run.envelope.status)
     lines = [SUMMARY_MARKER, "## Code review summary", "", "| Review | Status | Commit |",
              "|---|---|---|", f"| Code review | {status} | `{head[:7]}` |", "",
-             _counts(run.findings)]  # fmt: skip
+             *_outcome(run)]  # fmt: skip
     paragraphs = _summary(change_summary)
     if paragraphs:
         lines += ["", "<details><summary>Summary of the change</summary>", ""]

@@ -223,3 +223,23 @@ def test_only_a_run_folders_own_review_json_is_used(tmp_path):
     (run / "review.json").write_text("{}")
     (run / "home" / "deep" / "review.json").write_text("{}")  # an agent-written decoy
     assert gh.find_run(tmp_path / "runs") == run / "review.json"
+
+
+def test_a_failed_run_never_reads_as_a_clean_review():
+    doc = review_doc([])
+    doc["envelope"]["status"] = "failed"
+    for row in doc["envelope"]["reviewers"]:
+        row["outcome"] = "not_run"
+    body = gh.review_payload(doc, DIFF, head=HEAD, repo="o/r")["body"]
+    assert "No issues found" not in body
+    assert "The review did not complete" in body
+    summary = gh.render_summary(doc, head=HEAD, change_summary=None)
+    assert "| Code review | Failed |" in summary and "No issues found" not in summary
+
+
+def test_a_partial_run_names_the_reviewers_that_did_not_finish():
+    doc = review_doc([finding()])
+    doc["envelope"]["status"] = "partial"
+    doc["envelope"]["reviewers"][1]["outcome"] = "not_run"
+    body = gh.review_payload(doc, DIFF, head=HEAD, repo="o/r")["body"]
+    assert "Not every reviewer finished: correctness." in body
