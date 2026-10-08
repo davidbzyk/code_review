@@ -19,12 +19,15 @@ import os
 import re
 import subprocess
 import sys
+import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 
+from review_core.aggregator.cli import MAX_SUMMARY_BYTES
 from review_core.aggregator.report import _clean, _description, _summary, _title
 from review_core.contracts.models import REVIEWERS, SEVERITIES, Finding, load_run_envelope
+from review_core.launcher.render import read_regular_file
 
 API = "https://api.github.com"
 SUMMARY_MARKER = "<!-- code-review-summary -->"
@@ -164,7 +167,9 @@ def review_payload(doc: dict, diff: str, *, head: str, repo: str) -> dict:
     if outside:
         body += ["", "Findings that could not be placed on a line of the diff:"]
         for shown, finding in enumerate(outside):
-            link = (f"https://github.com/{repo}/blob/{head}/{finding.file}"
+            # The path comes from the model: encoded, it cannot close the URL or open markup.
+            path = urllib.parse.quote(_clean(finding.file, ""), safe="/")
+            link = (f"https://github.com/{repo}/blob/{head}/{path}"
                     f"#L{finding.line_start}-L{finding.line_end}")  # fmt: skip
             block = ["", "---", "", link, "", _heading(finding), "", _meta(finding), ""]
             block += [_inert(p) for p in _description(finding.description)]
@@ -241,9 +246,19 @@ def pr_diff(repo_dir: Path, base: str, head: str) -> str:
     return done.stdout
 
 
+def read_summary(path: Path) -> str | None:
+    """The change summary the orchestrator wrote, or None.
+
+    An agent writes that file, so a link (say, to the seeded Codex login) or an oversized file
+    is refused rather than followed into a public comment.
+    """
+    data = read_regular_file(path, MAX_SUMMARY_BYTES)
+    return data.decode("utf-8", errors="replace") if data is not None else None
+
+
 def find_run(runs: Path) -> Path:
-    """The one review.json under the runs folder."""
-    found = sorted(runs.glob("**/review.json"))
+    """The review.json the launcher wrote at the top of the one run folder."""
+    found = sorted(runs.glob("*/review.json"))
     if len(found) != 1:
         raise SystemExit(f"expected one review.json under {runs}, found {len(found)}")
     return found[0]
@@ -261,9 +276,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--dry-run", type=Path, help="write the payloads here; send nothing")
     args = p.parse_args(argv)
     doc = json.loads(find_run(args.runs).read_text(encoding="utf-8"))
-    summary = None
-    if args.summary and args.summary.is_file():
-        summary = args.summary.read_text(encoding="utf-8", errors="replace")
+    summary = read_summary(args.summary) if args.summary else None
     token = os.environ.get("GITHUB_TOKEN", "")
     if args.dry_run is None and not token:
         raise SystemExit("GITHUB_TOKEN is not set (use --dry-run to post nothing)")

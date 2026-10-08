@@ -197,3 +197,29 @@ def test_a_body_over_the_github_limit_is_cut_with_a_note():
     body = gh.review_payload(review_doc(many), DIFF, head=HEAD, repo="o/r")["body"]
     assert len(body) <= gh.MAX_BODY
     assert "more findings are in the run folder" in body
+
+
+def test_a_summary_that_is_a_link_is_not_read(tmp_path):
+    secret = tmp_path / "auth.json"
+    secret.write_text('{"tokens": "SECRET-VALUE"}')
+    link = tmp_path / "pr-summary.md"
+    link.symlink_to(secret)
+    assert gh.read_summary(link) is None
+    plain = tmp_path / "plain.md"
+    plain.write_text("Adds a handler.")
+    assert gh.read_summary(plain) == "Adds a handler."
+
+
+def test_a_hostile_file_path_cannot_inject_markup_into_the_permalink():
+    bad = finding(file="x.py) @owner [click](https://evil.example)", line_start=40, line_end=41)
+    body = gh.review_payload(review_doc([bad]), DIFF, head=HEAD, repo="o/r")["body"]
+    assert "@owner" not in body and "[click](https://evil.example)" not in body
+    assert f"https://github.com/o/r/blob/{HEAD}/x.py%29%20%40owner%20" in body
+
+
+def test_only_a_run_folders_own_review_json_is_used(tmp_path):
+    run = tmp_path / "runs" / "20261008T000000Z-abc"
+    (run / "home" / "deep").mkdir(parents=True)
+    (run / "review.json").write_text("{}")
+    (run / "home" / "deep" / "review.json").write_text("{}")  # an agent-written decoy
+    assert gh.find_run(tmp_path / "runs") == run / "review.json"
