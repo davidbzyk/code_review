@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
+# Trial results quote private case material: present on disk, never tracked.
+trials/results/

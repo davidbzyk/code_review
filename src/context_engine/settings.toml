@@ -1,0 +1,64 @@
+# Every tunable of the vector context engine. The build reads this file and writes it into the
+# manifest; the query side reads the manifest copy and never this file.
+
+[embedding]
+model = "text-embedding-3-large"
+vector_size = 3072
+fake_vector_size = 256        # vector size of the offline test embedder (model "fake")
+chars_per_token = 3           # token estimate is len(text) / chars_per_token
+input_token_cap = 6000        # one input is cut to this many estimated tokens
+request_max_inputs = 256
+request_token_budget = 150000 # estimated tokens per request
+max_retries = 5
+backoff_seconds = 1.0
+max_build_tokens = 40000000    # ceiling on one build, counted as UTF-8 bytes of uncached text;
+                               # the platform repository's first case needs about 25 million
+backoff_cap_seconds = 30.0
+timeout_seconds = 60
+
+[chunk]
+size_cap_lines = 80
+size_cap_chars = 3200
+merge_target_lines = 30       # small neighbouring units merge up to this many lines
+merge_target_chars = 1200
+max_container_depth = 40      # deeper containers are split by lines, not by member
+window_lines = 50             # window size for non-code text and fallbacks
+file_size_limit_bytes = 300000
+max_tree_bytes = 500000000    # files of one tree may add up to this much and no more
+max_files = 50000             # a tree with more entries (files and folders) than this is refused
+max_depth = 40                # a tree with folders nested deeper than this is refused
+line_char_limit = 20000       # a file with a longer line is skipped
+oversize_count_bytes = 8000000 # bytes read to estimate the lines of an oversize file
+skip_dirs = [".git", "node_modules", "target", "dist", "build", ".venv", "__pycache__", ".svelte-kit"]
+skip_files = ["package-lock.json", "pnpm-lock.yaml", "yarn.lock", "Cargo.lock", "uv.lock"]
+
+[languages]
+rust = [".rs"]
+typescript = [".ts", ".mts", ".cts"]
+tsx = [".tsx"]
+javascript = [".js", ".mjs", ".cjs", ".jsx"]
+python = [".py"]
+svelte = [".svelte"]
+css = [".css", ".scss"]
+html = [".html", ".htm"]
+json = [".json"]
+toml = [".toml"]
+yaml = [".yml", ".yaml"]
+markdown = [".md", ".mdx"]
+shell = [".sh", ".bash", ".zsh"]
+
+[retrieval]
+rrf_k = 60
+default_k = 8
+signature_weight = 3          # a signature term is repeated this many times in the keyword text
+
+[change]
+query_max_chars = 6000        # text of the changed hunks sent to the embedder per file
+diff_cell_budget = 25000000   # lines(indexed) x lines(changed) above this is not diffed
+diff_total_cell_budget = 200000000  # the same product summed over every file of one change
+max_related_files = 500       # changed files past this (in path order) get no related query
+query_max_terms = 64          # BM25 terms kept per changed file
+
+[report]
+coverage_floor = 0.95
+coverage_min_lines = 200      # a language needs this many lines before the floor applies

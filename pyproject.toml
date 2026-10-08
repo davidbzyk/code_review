@@ -1,0 +1,53 @@
+[project]
+name = "code-review"
+version = "0.1.0"
+description = "A team of review agents for pull requests, with evals that rerun whenever the pipeline changes."
+readme = "README.md"
+requires-python = ">=3.12"
+# The review itself needs only the standard library; the vector context provider needs the extra.
+dependencies = []
+
+[project.optional-dependencies]
+context = [
+    "lancedb>=0.39.0",
+    "tree-sitter>=0.26.0",
+    "tree-sitter-python>=0.25.0",
+    "tree-sitter-rust>=0.24.2",
+    "tree-sitter-typescript>=0.23.2",
+]
+
+[project.scripts]
+code-review = "review_core.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8", "ruff>=0.6", "jsonschema>=4",
+    # the context extra, so the whole suite runs in development
+    "lancedb>=0.39.0", "tree-sitter>=0.26.0", "tree-sitter-python>=0.25.0",
+    "tree-sitter-rust>=0.24.2", "tree-sitter-typescript>=0.23.2",
+]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/review_core", "src/context_engine"]
+
+[tool.uv]
+# Every Python dependency is at least two weeks old when resolved.
+exclude-newer = "2026-09-24T00:00:00Z"
+default-groups = ["dev"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+markers = ["docker: needs local Docker and Harbor"]
+addopts = "-m 'not docker'"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

@@ -1,0 +1,6 @@
+{
+  "name": "code-review",
+  "version": "0.1.0",
+  "description": "Multi-agent code review: an orchestrator skill, seven specialist reviewer skills and a validator skill, with a bundled aggregator script.",
+  "skills": "./skills/"
+}

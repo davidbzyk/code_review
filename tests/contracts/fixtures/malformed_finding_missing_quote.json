@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "reviewer": "correctness",
+  "findings": [
+    {
+      "file": "app/billing.py",
+      "line_start": 42,
+      "line_end": 44,
+      "side": "new",
+      "title": "Discount applied after rounding",
+      "description": "The discount is subtracted from an already rounded total, so cents drift.",
+      "severity": "P1",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": null
+    }
+  ]
+}

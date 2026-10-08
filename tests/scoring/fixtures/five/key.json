@@ -1,0 +1,90 @@
+{
+  "version": "1",
+  "entries": [
+    {
+      "id": "e1",
+      "case": "five",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "bug at line 5",
+      "sites": [
+        {
+          "file": "app/m.py",
+          "side": "new",
+          "line_start": 5,
+          "line_end": 5,
+          "anchor": "x5 = 5"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "e2",
+      "case": "five",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "bug at line 15",
+      "sites": [
+        {
+          "file": "app/m.py",
+          "side": "new",
+          "line_start": 15,
+          "line_end": 15,
+          "anchor": "x15 = 15"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "e3",
+      "case": "five",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "bug at line 25",
+      "sites": [
+        {
+          "file": "app/m.py",
+          "side": "new",
+          "line_start": 25,
+          "line_end": 25,
+          "anchor": "x25 = 25"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "e4",
+      "case": "five",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "bug at line 35",
+      "sites": [
+        {
+          "file": "app/m.py",
+          "side": "new",
+          "line_start": 35,
+          "line_end": 35,
+          "anchor": "x35 = 35"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "e5",
+      "case": "five",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "bug at line 45",
+      "sites": [
+        {
+          "file": "app/m.py",
+          "side": "new",
+          "line_start": 45,
+          "line_end": 45,
+          "anchor": "x45 = 45"
+        }
+      ],
+      "fixed_sites": []
+    }
+  ]
+}

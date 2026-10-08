@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "correctness",
+      "security"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 1,
+        "findings_count": 0
+      }
+    ],
+    "runner": "codex",
+    "model": "gpt-5.5",
+    "effort": "high",
+    "cli_version": "0.159.2",
+    "sandbox_mode": "read-only",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 2,
+      "duplicate": 1,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "app/billing.py",
+      "line_start": 42,
+      "line_end": 44,
+      "side": "new",
+      "quote": "total = price * qty\nreturn total - discount",
+      "title": "Discount applied after rounding",
+      "description": "The discount is subtracted from an already rounded total, so cents drift.",
+      "severity": "P1",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "a3f1c9d27be04e55",
+      "also_raised_by": []
+    }
+  ]
+}

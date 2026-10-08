@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "reviewer": "correctness",
+  "findings": [
+    {
+      "file": "app/billing.py",
+      "line_start": 42,
+      "line_end": 44,
+      "side": "new",
+      "quote": "total = price * qty\nreturn total - discount",
+      "title": "Discount applied after rounding",
+      "description": "The discount is subtracted from an already rounded total, so cents drift.",
+      "severity": "P1",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": null
+    },
+    {
+      "file": "app/auth.py",
+      "line_start": 10,
+      "line_end": 10,
+      "side": "old",
+      "quote": "if token == expected:",
+      "title": "Non constant time token compare",
+      "description": "Plain equality leaks timing information about the token.",
+      "severity": "P2",
+      "confidence": 50,
+      "category": "security",
+      "reviewer": "security",
+      "scope": "pre_existing",
+      "fingerprint": null
+    }
+  ]
+}

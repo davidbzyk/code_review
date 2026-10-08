@@ -1,0 +1,22 @@
+{
+  "version": "1",
+  "entries": [
+    {
+      "id": "voiceover-001",
+      "case": "voiceover-billing-rounding",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "Discount applied after rounding.",
+      "sites": [],
+      "fixed_sites": [
+        {
+          "file": "app/billing.py",
+          "side": "new",
+          "line_start": 42,
+          "line_end": 44,
+          "anchor": "return round(total - discount, 2)"
+        }
+      ]
+    }
+  ]
+}

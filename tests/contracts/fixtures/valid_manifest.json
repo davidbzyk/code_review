@@ -1,0 +1,17 @@
+{
+  "run_id": "r-0001",
+  "case": "voiceover-billing-rounding",
+  "arm": "vector",
+  "repeat": 2,
+  "runner": "codex",
+  "model": "gpt-5.5",
+  "effort": "high",
+  "cli_version": "0.159.2",
+  "key_version": "1",
+  "store_hash": null,
+  "skills_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "snapshot_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "started_at": "2026-10-05T17:00:00Z",
+  "finished_at": "2026-10-05T17:09:41Z",
+  "status": "complete"
+}

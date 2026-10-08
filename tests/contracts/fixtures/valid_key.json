@@ -1,0 +1,54 @@
+{
+  "version": "1",
+  "entries": [
+    {
+      "id": "voiceover-001",
+      "case": "voiceover-billing-rounding",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "Discount applied after rounding.",
+      "sites": [
+        {
+          "file": "app/billing.py",
+          "side": "new",
+          "line_start": 42,
+          "line_end": 44,
+          "anchor": "return total - discount"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "app/billing.py",
+          "side": "new",
+          "line_start": 42,
+          "line_end": 44,
+          "anchor": "return round(total - discount, 2)"
+        }
+      ]
+    },
+    {
+      "id": "voiceover-002",
+      "case": "voiceover-queue-retry",
+      "tier": 2,
+      "tag": "needs_other_files",
+      "description": "Retry loop ignores the cancellation flag.",
+      "sites": [
+        {
+          "file": "app/queue.py",
+          "side": "new",
+          "line_start": 7,
+          "line_end": 9,
+          "anchor": "while attempts < MAX:"
+        },
+        {
+          "file": "app/worker.py",
+          "side": "new",
+          "line_start": 30,
+          "line_end": 30,
+          "anchor": "queue.retry(job)"
+        }
+      ],
+      "fixed_sites": []
+    }
+  ]
+}
