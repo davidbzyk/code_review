@@ -1,0 +1,30 @@
+# What this repository must never track. Read by ci/check_tracked_paths.py from the pre-commit hook.
+# A new kind of private material is a new row here, not a code edit.
+
+# Paths refused anywhere (lower-cased, repository-relative POSIX globs).
+deny_globs = [
+  "trials/results/*",
+  "evals/out/*",
+  "private/*",
+  "*.env",
+  ".env",
+  ".env.*",
+]
+# Templates of .env that hold no values.
+allow_names = [".env.example", ".env.sample", ".env.template"]
+
+# File names refused in any folder: case material and graded output.
+deny_names = ["repo.tar.gz", "golden.json", "first-review.json", "threads.json",
+              "reward-details.json", "auth.json"]
+
+# Text that must not appear in any tracked file. Each source is a glob under $REVIEW_PRIVATE_ROOT
+# and the JSON fields to read; strings shorter than min_chars are ordinary code and skipped.
+min_chars = 40
+
+[[needles]]
+glob = "cases/*/golden.json"
+fields = ["comments.comment", "comments.title"]
+
+[[needles]]
+glob = "cases/*/case.json"
+fields = ["rows.detail"]

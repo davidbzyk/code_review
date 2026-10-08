@@ -1,0 +1,4 @@
+#!/bin/sh
+# Refuse private case material, graded output and credentials (ci/tracked-paths.toml).
+# Set REVIEW_PRIVATE_ROOT to also check staged text against the private case files.
+exec python3 "$(git rev-parse --show-toplevel)/ci/check_tracked_paths.py"
