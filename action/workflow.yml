@@ -16,9 +16,8 @@ concurrency:
 
 jobs:
   review:
-    # Drafts wait; pull requests from forks get no secrets, so they are not reviewed.
-    # Dependabot pull requests get no secrets either, so they are skipped rather than failed. The
-    # author is checked, not the actor: a maintainer reopening one is the actor.
+    # Drafts wait; forks and Dependabot get no secrets, so they are skipped. Dependabot is
+    # known by the PR's author, not the actor (a maintainer reopening its PR is the actor).
     if: >-
       !github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.repository &&
