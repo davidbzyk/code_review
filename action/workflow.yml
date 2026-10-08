@@ -29,6 +29,9 @@ jobs:
           fetch-depth: 0
           # The agents can read the checkout; the job token must not sit in .git/config.
           persist-credentials: false
+      # Secrets reach this PR's own copy of the action by design: GitHub gives same-repository
+      # branches secrets because their authors already have write access, and such an author can
+      # add any workflow that reads any secret. Forks and Dependabot get none (see `if:` above).
       - uses: ./.code-review
         with:
           auth: ${{ vars.CODE_REVIEW_AUTH || 'subscription' }}
