@@ -76,7 +76,7 @@ def test_a_finding_on_a_diff_line_anchors_and_one_outside_does_not():
     lines = gh.commentable_lines(DIFF)
     inside = load_run_envelope(review_doc([finding(line_start=11, line_end=12)])).findings[0]
     assert gh.anchor(inside, lines) == {"path": "app/server.py", "start_line": 11, "line": 12,
-                                        "side": "RIGHT"}  # fmt: skip
+                                        "side": "RIGHT", "start_side": "RIGHT"}  # fmt: skip
     outside = load_run_envelope(review_doc([finding(line_start=40, line_end=41)])).findings[0]
     assert gh.anchor(outside, lines) is None
     old = load_run_envelope(review_doc([finding(side="old")])).findings[0]
@@ -440,3 +440,34 @@ def test_a_cut_comment_keeps_its_marker_even_with_a_huge_title():
     assert body.rstrip().endswith(
         gh._marker(load_run_envelope(review_doc([huge])).findings[0], HEAD)
     )
+
+
+def test_an_encoded_or_reversed_credential_is_still_caught(tmp_path):
+    import base64
+
+    auth = write_auth(tmp_path)
+    secrets = gh.credentials([auth], [])
+    whole = base64.b64encode(auth.read_bytes()).decode()  # the whole login file, encoded
+    for leaked in (whole, TOKEN.encode().hex(), TOKEN[::-1],
+                   base64.urlsafe_b64encode(TOKEN.encode()).decode().rstrip("=")):  # fmt: skip
+        doc = review_doc([finding(description=f"value: {leaked}")])
+        try:
+            gh.publish(doc, DIFF, head=HEAD, repo="o/r", pr=7, change_summary=None, token="t",
+                       request=lambda *a, **k: [], secrets=secrets)  # fmt: skip
+        except gh.CredentialInOutput:
+            continue
+        raise AssertionError(f"not caught: {leaked[:20]}")
+
+
+def test_the_summary_comment_is_capped():
+    many = [finding(title="T" * 5_000, line_start=40 + i, line_end=40 + i,
+                    fingerprint=f"{i:064x}") for i in range(400)]  # fmt: skip
+    text = gh.render_summary(review_doc(many), head=HEAD, repo="o/r", change_summary=None)
+    assert len(text) <= gh.MAX_BODY and text.startswith(gh.SUMMARY_MARKER)
+    assert "more findings are in the review above" in text
+
+
+def test_a_multi_line_comment_names_its_start_side():
+    lines = gh.commentable_lines(DIFF)
+    f = load_run_envelope(review_doc([finding(line_start=11, line_end=12)])).findings[0]
+    assert gh.anchor(f, lines)["start_side"] == "RIGHT"

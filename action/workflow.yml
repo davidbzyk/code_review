@@ -3,7 +3,8 @@ name: Code review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    # `edited` only to re-review after the base branch changes (see the job's condition).
+    types: [opened, synchronize, reopened, ready_for_review, edited]
 
 permissions:
   contents: read
@@ -16,16 +17,20 @@ concurrency:
 jobs:
   review:
     # Drafts wait; pull requests from forks get no secrets, so they are not reviewed.
-    # Dependabot pull requests get no secrets either, so they are skipped rather than failed.
+    # Dependabot pull requests get no secrets either, so they are skipped rather than failed. The
+    # author is checked, not the actor: a maintainer reopening one is the actor.
     if: >-
       !github.event.pull_request.draft &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.actor != 'dependabot[bot]'
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      (github.event.action != 'edited' || github.event.changes.base)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # The PR head, not GitHub's merge commit: the reviewers read the code being submitted.
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           # The agents can read the checkout; the job token must not sit in .git/config.
           persist-credentials: false

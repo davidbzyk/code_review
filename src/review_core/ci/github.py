@@ -14,6 +14,7 @@ sent.
 from __future__ import annotations
 
 import argparse
+import base64
 import dataclasses
 import json
 import os
@@ -84,7 +85,8 @@ def anchor(finding: Finding, lines: dict[str, set[int]]) -> dict | None:
     place = {"path": finding.file, "line": finding.line_end, "side": "RIGHT"}
     span = range(finding.line_start, finding.line_end + 1)
     if finding.line_start < finding.line_end and all(n in allowed for n in span):
-        place = {"path": finding.file, "start_line": finding.line_start, **place}
+        place = {"path": finding.file, "start_line": finding.line_start, **place,
+                 "start_side": "RIGHT"}  # fmt: skip
     return place
 
 
@@ -285,21 +287,31 @@ def render_summary(doc: dict, *, head: str, repo: str, change_summary: str | Non
     """The summary issue comment: the outcome, a table of findings, the change as bullets."""
     run = load_run_envelope(doc)
     lines = [SUMMARY_MARKER, f"## {_title(title)}", "", *_outcome(run, head)]
+    tail = []
+    sentences = [s for para in _summary(change_summary) for s in _SENTENCE.split(para) if s]
+    if sentences:
+        tail += ["", "<details><summary>What the change does</summary>", ""]
+        tail += [f"- {_inert(s)}" for s in sentences]
+        tail += ["", "</details>"]
+    tail += ["", _footer(run)]
+    # GitHub refuses a comment over 65,536 characters, and a refused summary fails every retry.
+    if len("\n".join([*lines, *tail])) > MAX_BODY // 2:
+        tail = ["", _footer(run)]
     if _published(run) and run.envelope.status != "failed":
         lines += ["", "| Severity | Finding | Where |", "|---|---|---|"]
-        for f in _ordered(_published(run)):
+        shown = _ordered(_published(run))
+        for i, f in enumerate(shown):
             place = (
                 f"{f.line_start}" if f.line_start == f.line_end else f"{f.line_start}-{f.line_end}"
             )
             where = f"[{_title(f.file)}:{place}]({_permalink(repo, head, f, base)})"
-            lines.append(f"| {f.severity} | {_inert(_title(f.title))} | {where} |")
-    sentences = [s for para in _summary(change_summary) for s in _SENTENCE.split(para) if s]
-    if sentences:
-        lines += ["", "<details><summary>What the change does</summary>", ""]
-        lines += [f"- {_inert(s)}" for s in sentences]
-        lines += ["", "</details>"]
-    lines += ["", _footer(run)]
-    return "\n".join(lines) + "\n"
+            row = f"| {f.severity} | {_inert(_title(f.title))[:300]} | {where} |"
+            note = ["", f"{len(shown) - i} more findings are in the review above."]
+            if len("\n".join([*lines, row, *note, *tail])) > MAX_BODY:
+                lines += note
+                break
+            lines.append(row)
+    return "\n".join([*lines, *tail]) + "\n"
 
 
 MIN_CREDENTIAL = 16  # shorter strings in a login file are ids and modes, not credentials
@@ -341,11 +353,29 @@ def _forms(text: str) -> tuple[str, str]:
     return text, re.sub(r"\s+", "", text.replace("\\", ""))
 
 
+def _encodings(secret: str) -> list[str]:
+    """The secret as a misled reviewer might copy it: as is, reversed, hex and base64.
+
+    Base64 of a larger text shifts with the secret's byte offset, so each of the three
+    alignments gives its own run of characters that only that secret produces.
+    """
+    raw = secret.encode()
+    found = [secret, secret[::-1], raw.hex()]
+    for k in range(3):
+        start, end = (4 if k else 0), (k + len(raw)) // 3 * 4
+        for encode in (base64.b64encode, base64.urlsafe_b64encode):
+            core = encode(b"\0" * k + raw).decode()[start:end]
+            if len(core) >= MIN_CREDENTIAL:
+                found.append(core)
+    return found
+
+
 def _check(texts: list[str], secrets: list[str]) -> None:
-    """Raise CredentialInOutput when any text, as sent or as shown, holds one of the secrets."""
+    """Raise CredentialInOutput when any text, as sent or as shown, holds a form of a secret."""
+    needles = [n for secret in secrets for n in _encodings(secret)]
     for text in texts:
         for form in _forms(text):
-            if any(secret in form for secret in secrets):
+            if any(needle in form for needle in needles):
                 raise CredentialInOutput("the review output holds a credential of this run")
 
 

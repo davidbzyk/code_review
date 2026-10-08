@@ -201,7 +201,7 @@ def test_the_workflow_pins_actions_by_sha_drops_the_token_and_skips_dependabot()
                 ref = line.split("@", 1)[1].split()[0]
                 assert len(ref) == 40 and all(c in "0123456789abcdef" for c in ref), line
     assert "persist-credentials: false" in workflow
-    assert "github.actor != 'dependabot[bot]'" in workflow
+    assert "github.event.pull_request.user.login != 'dependabot[bot]'" in workflow
 
 
 def test_the_action_reviews_on_the_rows_that_give_commands_no_network():
@@ -285,3 +285,12 @@ def test_the_installed_copy_carries_the_context_command(workdir, tmp_path):
                           env={"PATH": os.environ["PATH"], "PYTHONPATH": str(dest / "src")},
                           cwd=tmp_path, capture_output=True, text=True)  # fmt: skip
     assert done.returncode == 0, done.stderr
+
+
+def test_the_workflow_reviews_the_pr_head_skips_dependabot_by_author_and_reruns_on_retarget():
+    text = (ROOT / "action" / "workflow.yml").read_text()
+    assert "ref: ${{ github.event.pull_request.head.sha }}" in text
+    assert "github.event.pull_request.user.login != 'dependabot[bot]'" in text
+    assert "github.actor" not in text
+    assert "types: [opened, synchronize, reopened, ready_for_review, edited]" in text
+    assert "(github.event.action != 'edited' || github.event.changes.base)" in text
