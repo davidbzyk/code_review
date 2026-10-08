@@ -399,3 +399,35 @@ def test_a_summary_marker_posted_by_someone_else_is_never_edited():
                token="t", request=request)  # fmt: skip
     assert ("PATCH", "https://api.github.com/repos/o/r/issues/comments/9") not in calls
     assert calls[-1] == ("POST", "https://api.github.com/repos/o/r/issues/7/comments")
+
+
+def test_findings_outside_the_change_are_counted_not_posted():
+    old = finding(scope="pre_existing", title="Old problem", fingerprint="c" * 64)
+    payload = gh.review_payload(review_doc([finding(), old]), DIFF, head=HEAD, repo="o/r")
+    assert "Old problem" not in json.dumps(payload)
+    assert "1 finding in code this change did not touch is not posted." in payload["body"]
+
+
+def test_an_old_side_finding_links_to_the_base_commit():
+    base = "c" * 40
+    gone = finding(side="old", line_start=11, line_end=11, title="Removed check")
+    body = gh.review_payload(review_doc([gone]), DIFF, head=HEAD, base=base, repo="o/r")["body"]
+    assert f"https://github.com/o/r/blob/{base}/app/server.py#L11-L11" in body
+    assert f"/blob/{HEAD}/app/server.py#L11" not in body
+
+
+def test_an_oversized_finding_is_cut_to_fit_one_comment():
+    huge = finding(description="word " * 40_000)
+    comments = gh.review_payload(review_doc([huge]), DIFF, head=HEAD, repo="o/r")["comments"]
+    assert len(comments) == 1 and len(comments[0]["body"]) <= gh.MAX_COMMENT
+    assert "(cut to fit one comment)" in comments[0]["body"]
+
+
+def test_every_function_of_the_poster_has_a_docstring():
+    import ast
+    import inspect
+
+    tree = ast.parse(inspect.getsource(gh))
+    missing = [n.name for n in ast.walk(tree)
+               if isinstance(n, ast.FunctionDef) and not ast.get_docstring(n)]  # fmt: skip
+    assert missing == []

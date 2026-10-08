@@ -14,6 +14,7 @@ sent.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import os
 import re
@@ -40,6 +41,7 @@ TITLE = "Custom Code Review"  # the heading of the review and the summary; --tit
 BOT = "github-actions[bot]"  # who posts; only its own markers count as already posted
 SUMMARY_MARKER = "<!-- code-review-summary -->"
 MAX_BODY = 60_000  # GitHub refuses a review body over 65,536 characters
+MAX_COMMENT = 20_000  # one inline comment; the description is cut to fit
 # Badge colours per severity: data, so a new level is a row here.
 BADGES = {"P0": "red", "P1": "orange", "P2": "yellow", "P3": "lightgrey"}
 STATUS_WORDS = {"complete": "Completed", "partial": "Partial", "failed": "Failed"}
@@ -99,12 +101,14 @@ def _fence(text: str) -> list[str]:
 
 
 def _badge(severity: str) -> str:
+    """The severity as a small coloured badge image."""
     colour = BADGES.get(severity, "lightgrey")
     return (f"<sub><sub>![{severity} Badge](https://img.shields.io/badge/{severity}-{colour}"
             f"?style=flat)</sub></sub>")  # fmt: skip
 
 
 def _meta(finding: Finding) -> str:
+    """The reviewer, confidence and the other reviewers that raised it, on one italic line."""
     parts = [f"_{_inert(_title(finding.reviewer))}_", f"_confidence {finding.confidence}_"]
     others = [r for r in REVIEWERS if r in finding.also_raised_by and r != finding.reviewer]
     if others:
@@ -113,6 +117,7 @@ def _meta(finding: Finding) -> str:
 
 
 def _heading(finding: Finding) -> str:
+    """Badge and title in bold: the first line of every finding."""
     return f"**{_badge(finding.severity)}  {_inert(_title(finding.title))}**"
 
 
@@ -132,7 +137,21 @@ def _prompt(finding: Finding) -> list[str]:
 
 
 def render_inline(finding: Finding, head: str) -> str:
-    """One inline comment: badge and title, a meta line, the description, the agent prompt."""
+    """One inline comment: badge and title, a meta line, the description, the agent prompt.
+
+    A description too long for one comment is cut, so one verbose finding cannot make GitHub
+    refuse the whole review.
+    """
+    text = _inline(finding, head)
+    if len(text) <= MAX_COMMENT:
+        return text
+    room = max(0, len(finding.description) - (len(text) - MAX_COMMENT) // 2 - 200)
+    short = finding.description[:room].rstrip() + " ... (cut to fit one comment)"
+    return _inline(dataclasses.replace(finding, description=short), head)[:MAX_COMMENT]
+
+
+def _inline(finding: Finding, head: str) -> str:
+    """The inline comment as written, before any cut."""
     lines = [_heading(finding), "", _meta(finding), ""]
     for para in _description(finding.description):
         lines += [_inert(para), ""]
@@ -147,10 +166,12 @@ def _marker(finding: Finding, head: str) -> str:
 
 
 def _ordered(findings) -> list[Finding]:
+    """Most severe first, then by place."""
     return sorted(findings, key=lambda f: (SEVERITIES.index(f.severity), f.file, f.line_start))
 
 
 def _counts(findings, head: str) -> str:
+    """The one count line: total in bold, then a chip per severity."""
     if not findings:
         return f"No issues found on `{head[:7]}`."
     noun = "finding" if len(findings) == 1 else "findings"
@@ -163,21 +184,29 @@ def _outcome(run, head: str) -> list[str]:
     """What the run found, never read as a clean review when reviewers did not finish."""
     if run.envelope.status == "failed":
         return [f"**The review did not complete** on `{head[:7]}`, so no code was checked."]
-    lines = [_counts(run.findings, head)]
+    lines = [_counts(_published(run), head)]
     unfinished = [r.reviewer for r in run.envelope.reviewers if r.outcome not in SUCCESS_OUTCOMES]
     if unfinished:
         lines += ["", f"Not every reviewer finished: {', '.join(unfinished)}."]
     return lines
 
 
-def _permalink(repo: str, head: str, finding: Finding) -> str:
+def _published(run) -> list[Finding]:
+    """The findings in code this change touched; pre-existing and out-of-slice ones are not."""
+    return [f for f in run.findings if f.scope == "in_diff"]
+
+
+def _permalink(repo: str, head: str, finding: Finding, base: str | None = None) -> str:
+    """A link to the finding's lines: in the base commit for old-side findings, else the head."""
     # The path comes from the model: encoded, it cannot close the URL or open markup.
     path = urllib.parse.quote(_clean(finding.file, ""), safe="/")
-    return (f"https://github.com/{repo}/blob/{head}/{path}"
+    commit = base if finding.side == "old" and base else head
+    return (f"https://github.com/{repo}/blob/{commit}/{path}"
             f"#L{finding.line_start}-L{finding.line_end}")  # fmt: skip
 
 
 def _footer(run) -> str:
+    """Runner, model, effort and Codex version in small text."""
     env = run.envelope
     return f"<sub>{env.runner} · {env.model} · effort {env.effort} · Codex {env.cli_version}</sub>"
 
@@ -198,7 +227,7 @@ def posted_fingerprints(bodies: list[str]) -> set[str]:
 
 
 def review_payload(doc: dict, diff: str, *, head: str, repo: str, title: str = TITLE,
-                   posted: set[str] = frozenset()) -> dict:  # fmt: skip
+                   posted: set[str] = frozenset(), base: str | None = None) -> dict:  # fmt: skip
     """The body of POST /repos/{repo}/pulls/{n}/reviews for one run.
 
     A finding whose fingerprint is in `posted` is already on the pull request and is left out.
@@ -206,7 +235,7 @@ def review_payload(doc: dict, diff: str, *, head: str, repo: str, title: str = T
     run = load_run_envelope(doc)
     lines = commentable_lines(diff)
     comments, outside, repeated = [], [], 0
-    for finding in _ordered(run.findings):
+    for finding in _ordered(_published(run)):
         if finding.fingerprint in posted:
             repeated += 1
             continue
@@ -218,12 +247,20 @@ def review_payload(doc: dict, diff: str, *, head: str, repo: str, title: str = T
     body = [f"### {_title(title)}", "", *_outcome(run, head)]
     if repeated:
         body += ["", f"{repeated} already posted on an earlier commit; not repeated here."]
+    elsewhere = len(run.findings) - len(_published(run))
+    if elsewhere and run.envelope.status != "failed":
+        which = (
+            "1 finding in code this change did not touch is"
+            if elsewhere == 1
+            else (f"{elsewhere} findings in code this change did not touch are")
+        )
+        body += ["", f"{which} not posted."]
     tail = ["", _footer(run)]
     if outside:
         body += ["", "Findings that could not be placed on a line of the diff:"]
         for shown, finding in enumerate(outside):
-            block = ["", "---", "", _permalink(repo, head, finding), "", _heading(finding), "",
-                     _meta(finding), ""]  # fmt: skip
+            link = _permalink(repo, head, finding, base)
+            block = ["", "---", "", link, "", _heading(finding), "", _meta(finding), ""]
             block += [_inert(p) for p in _description(finding.description)]
             block += ["", _marker(finding, head)]
             note = ["", f"{len(outside) - shown} more findings are in the run folder."]
@@ -239,17 +276,17 @@ _SENTENCE = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9`])")
 
 
 def render_summary(doc: dict, *, head: str, repo: str, change_summary: str | None,
-                   title: str = TITLE) -> str:  # fmt: skip
+                   title: str = TITLE, base: str | None = None) -> str:  # fmt: skip
     """The summary issue comment: the outcome, a table of findings, the change as bullets."""
     run = load_run_envelope(doc)
     lines = [SUMMARY_MARKER, f"## {_title(title)}", "", *_outcome(run, head)]
-    if run.findings and run.envelope.status != "failed":
+    if _published(run) and run.envelope.status != "failed":
         lines += ["", "| Severity | Finding | Where |", "|---|---|---|"]
-        for f in _ordered(run.findings):
+        for f in _ordered(_published(run)):
             place = (
                 f"{f.line_start}" if f.line_start == f.line_end else f"{f.line_start}-{f.line_end}"
             )
-            where = f"[{_title(f.file)}:{place}]({_permalink(repo, head, f)})"
+            where = f"[{_title(f.file)}:{place}]({_permalink(repo, head, f, base)})"
             lines.append(f"| {f.severity} | {_inert(_title(f.title))} | {where} |")
     sentences = [s for para in _summary(change_summary) for s in _SENTENCE.split(para) if s]
     if sentences:
@@ -268,6 +305,7 @@ class CredentialInOutput(Exception):
 
 
 def _strings(value) -> list[str]:
+    """Every string inside a JSON value, at any depth."""
     if isinstance(value, str):
         return [value]
     if isinstance(value, dict):
@@ -299,6 +337,7 @@ def _forms(text: str) -> tuple[str, str]:
 
 
 def _check(texts: list[str], secrets: list[str]) -> None:
+    """Raise CredentialInOutput when any text, as sent or as shown, holds one of the secrets."""
     for text in texts:
         for form in _forms(text):
             if any(secret in form for secret in secrets):
@@ -331,7 +370,7 @@ def _pages(request: Callable, url: str, token: str, limit: int = 50) -> list[dic
 def publish(doc: dict, diff: str, *, head: str, repo: str, pr: int, change_summary: str | None,
             token: str, dry_run: Path | None = None, request: Callable = _request,
             api: str = API, secrets: list[str] = (), title: str = TITLE,
-            bot: str = BOT) -> None:  # fmt: skip
+            bot: str = BOT, base: str | None = None) -> None:  # fmt: skip
     """Post the review and create or edit the summary comment; with dry_run, write them instead.
 
     Raises CredentialInOutput, before any call, when the text holds one of `secrets`.
@@ -346,9 +385,10 @@ def publish(doc: dict, diff: str, *, head: str, repo: str, pr: int, change_summa
                  *_pages(request, f"{api}/repos/{repo}/pulls/{pr}/reviews", token)]  # fmt: skip
         ours = [c for c in found if (c.get("user") or {}).get("login") == bot]
         posted = posted_fingerprints([c.get("body", "") for c in ours])
-    payload = review_payload(doc, diff, head=head, repo=repo, title=title, posted=posted)
+    payload = review_payload(doc, diff, head=head, repo=repo, title=title, posted=posted,
+                             base=base)  # fmt: skip
     summary = render_summary(doc, head=head, repo=repo, change_summary=change_summary,
-                             title=title)  # fmt: skip
+                             title=title, base=base)  # fmt: skip
     _check([*_strings(payload), summary, change_summary or "", *_strings(doc["findings"])],
            list(secrets))  # fmt: skip
     if dry_run is not None:
@@ -409,6 +449,7 @@ def find_run(runs: Path) -> Path:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Read the run, build the post and send it; 3 when a credential stopped it."""
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--runs", type=Path, required=True, help="runs folder of the review")
     p.add_argument("--repo-dir", type=Path, required=True)
@@ -435,7 +476,7 @@ def main(argv: list[str] | None = None) -> int:
         publish(doc, pr_diff(args.repo_dir, args.base, args.head), head=args.head,
                 repo=args.repo, pr=args.pr, change_summary=summary, token=token,
                 dry_run=args.dry_run, secrets=secrets, title=args.title,
-                bot=args.bot)  # fmt: skip
+                bot=args.bot, base=args.base)  # fmt: skip
     except CredentialInOutput as exc:
         print(f"code-review: {exc}; nothing was posted", file=sys.stderr)
         return 3

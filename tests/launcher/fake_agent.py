@@ -317,7 +317,8 @@ def main() -> int:
             with child.open("a") as fh:
                 fh.write(json.dumps({"type": "event_msg", "payload": {"type": "working"}}) + "\n")
     print(json.dumps({"type": "turn.completed"}), flush=True)
-    return 0
+    # Writes every file, then fails: the review must not read as complete.
+    return 3 if a.scenario == "crash_after" else 0
 
 
 if __name__ == "__main__":

@@ -40,7 +40,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the command and return the exit code: 1 when the run failed."""
+    """Run the command and return the exit code: 1 when the run failed or its agent did."""
     args = _parser().parse_args(argv)
     result = run_review(
         workdir=args.repo, base=args.base, head=args.head, skills_dir=args.skills,
@@ -55,7 +55,12 @@ def main(argv: list[str] | None = None) -> int:
     for reason in result.reasons:
         print(f"reason: {reason}", file=sys.stderr)
     print(f"review.json: {result.review_path}")
-    return 1 if result.status == "failed" else 0
+    # An agent that crashed or was stopped may still have left files that parse: not trustworthy.
+    stopped = result.exit_code != 0 or result.timed_out
+    if stopped:
+        print(f"reason: the agent exited {result.exit_code}"
+              f"{' after a timeout' if result.timed_out else ''}", file=sys.stderr)  # fmt: skip
+    return 1 if result.status == "failed" or stopped else 0
 
 
 if __name__ == "__main__":

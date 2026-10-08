@@ -208,3 +208,80 @@ def test_the_action_reviews_on_the_rows_that_give_commands_no_network():
     script = (ROOT / "action" / "run-review.sh").read_text()
     assert "runner=codex-ci\n" in script and "runner=codex-ci-key\n" in script
     assert "runner=codex-clean" not in script and "runner=codex-key\n" not in script
+
+
+def _commit(workdir, message, change):
+    git = ["git", "-C", str(workdir), "-c", "user.name=t", "-c", "user.email=t@t"]
+    change()
+    subprocess.run([*git, "add", "-A"], check=True, capture_output=True)
+    subprocess.run([*git, "commit", "-q", "-m", message], check=True, capture_output=True)
+    return subprocess.run([*git, "rev-parse", "HEAD"], check=True, capture_output=True,
+                          text=True).stdout.strip()  # fmt: skip
+
+
+def _recording(registry, tmp_path):
+    """The fake runner, wrapped so the agent's arguments (its prompt among them) are kept."""
+    log = tmp_path / "argv.txt"
+    wrap = tmp_path / "record.sh"
+    wrap.write_text(f'#!/bin/bash\nprintf "%s\\n" "$@" >> {json.dumps(str(log))}\nexec "$@"\n')
+    text = registry.read_text()
+    line = next(x for x in text.splitlines() if x.startswith("argv = ["))
+    prefix = ", ".join(json.dumps(x) for x in ("bash", str(wrap))) + ", "
+    registry.write_text(text.replace(line, line.replace("argv = [", "argv = [" + prefix, 1)))
+    return registry, log
+
+
+def _run(dest, workdir, env):
+    return subprocess.run(["bash", str(dest / "run-review.sh")], cwd=workdir, env=env,
+                          capture_output=True, text=True)  # fmt: skip
+
+
+def _sha(workdir, ref):
+    return subprocess.run(["git", "-C", str(workdir), "rev-parse", ref], check=True,
+                          capture_output=True, text=True).stdout.strip()  # fmt: skip
+
+
+def test_a_change_that_only_deletes_a_file_is_reviewed(workdir, write_registry, tmp_path):
+    # SHAs, not the fixture's `head` tag: on a case-insensitive disk it collides with HEAD.
+    start = _sha(workdir, "refs/tags/head")
+    sha = _commit(workdir, "drop", lambda: (workdir / "app.py").unlink())
+    dest = bundle.install(workdir)
+    done = _run(dest, workdir, {**_env(workdir, tmp_path, write_registry()), "CR_BASE": start,
+                                "CR_HEAD": sha})  # fmt: skip
+    assert "nothing to review" not in done.stdout, done.stdout
+    assert done.returncode == 0, done.stderr
+
+
+def test_a_file_named_like_an_option_is_reviewed(workdir, write_registry, tmp_path):
+    start = _sha(workdir, "refs/tags/head")
+    sha = _commit(workdir, "dash", lambda: (workdir / "--head").write_text("x\n"))
+    dest = bundle.install(workdir)
+    registry, argv_log = _recording(write_registry(), tmp_path)
+    done = _run(dest, workdir, {**_env(workdir, tmp_path, registry), "CR_BASE": start,
+                                "CR_HEAD": sha})  # fmt: skip
+    assert done.returncode == 0, done.stderr
+    assert "--head" in argv_log.read_text()  # the file is in the reviewers' slice
+
+
+def test_the_review_gets_the_merge_base_not_the_moved_target(workdir, write_registry, tmp_path):
+    git = ["git", "-C", str(workdir), "-c", "user.name=t", "-c", "user.email=t@t"]
+    fork = _sha(workdir, "refs/tags/head")
+    pr = _commit(workdir, "pr", lambda: (workdir / "app.py").write_text("changed\n"))
+    subprocess.run([*git, "checkout", "-q", fork], check=True, capture_output=True)
+    tip = _commit(workdir, "target moved", lambda: (workdir / "other.py").write_text("y\n"))
+    subprocess.run([*git, "checkout", "-q", pr], check=True, capture_output=True)
+    dest = bundle.install(workdir)
+    registry, argv_log = _recording(write_registry(), tmp_path)
+    env = {**_env(workdir, tmp_path, registry), "CR_BASE": tip, "CR_HEAD": pr}
+    done = _run(dest, workdir, env)
+    assert done.returncode == 0, done.stderr
+    prompt = argv_log.read_text()
+    assert fork in prompt and tip not in prompt
+
+
+def test_the_installed_copy_carries_the_context_command(workdir, tmp_path):
+    dest = bundle.install(workdir)
+    done = subprocess.run([sys.executable, "-S", "-m", "review_core.context.ctx", "--help"],
+                          env={"PATH": os.environ["PATH"], "PYTHONPATH": str(dest / "src")},
+                          cwd=tmp_path, capture_output=True, text=True)  # fmt: skip
+    assert done.returncode == 0, done.stderr

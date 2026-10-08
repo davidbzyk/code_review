@@ -15,11 +15,15 @@ export PYTHONPATH="$here/src"
 py=(python3 -P)
 
 # The files this pull request changes, less the review tool itself.
-# NUL-separated, so a name git would quote (non-ASCII, spaces) arrives as itself.
+# The change is measured from the merge base, as GitHub shows it: the target's tip may have moved.
+base=$(git -C "$repo" merge-base "$CR_BASE" "$CR_HEAD")
+
+# NUL-separated, so a name git would quote (non-ASCII, spaces) arrives as itself; deleted files
+# count; --path=VALUE keeps a name that looks like an option a value.
 paths=()
 while IFS= read -r -d '' path; do
-  case "$path" in .code-review/*|.code-review-out/*|"") ;; *) paths+=(--path "$path") ;; esac
-done < <(git -C "$repo" diff --no-ext-diff -z --name-only --diff-filter=ACMR "$CR_BASE...$CR_HEAD")
+  case "$path" in .code-review/*|.code-review-out/*|"") ;; *) paths+=("--path=$path") ;; esac
+done < <(git -C "$repo" diff --no-ext-diff -z --name-only --diff-filter=ACMRD "$base" "$CR_HEAD")
 if [ ${#paths[@]} -eq 0 ]; then
   echo "code-review: no changed files outside .code-review/, nothing to review"
   exit 0
@@ -55,14 +59,14 @@ if [ -n "${CR_REGISTRY:-}" ]; then registry=(--registry "$CR_REGISTRY"); fi
 
 # The review never sees the GitHub token; only the post below gets it.
 status=0
-(cd "$here" && env -u GITHUB_TOKEN "${py[@]}" -m review_core.cli review --repo "$repo" --base "$CR_BASE" \
+(cd "$here" && env -u GITHUB_TOKEN "${py[@]}" -m review_core.cli review --repo "$repo" --base "$base" \
   --head "$CR_HEAD" --runner "$runner" --model "${CR_MODEL:-gpt-6-luna}" \
   --effort "${CR_EFFORT:-high}" --out "$out" --runs "$work/runs" "${registry[@]}" \
   "${paths[@]}") || status=$?
 
 # A failed run still has a review.json; post it so the pull request shows the failure.
 # The agents could read the login; the poster refuses to post any of its values.
-post=("${py[@]}" -m review_core.ci.github --runs "$work/runs" --repo-dir "$repo" --base "$CR_BASE"
+post=("${py[@]}" -m review_core.ci.github --runs "$work/runs" --repo-dir "$repo" --base "$base"
       --head "$CR_HEAD" --repo "$CR_REPO" --pr "$CR_PR" --summary "$out/pr-summary.md"
       --secret-env OPENAI_API_KEY)
 if [ -n "${CODEX_HOME:-}" ]; then

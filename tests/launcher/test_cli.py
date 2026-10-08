@@ -23,3 +23,17 @@ def test_review_command(
         assert "security: ok" in out and "language: ok" in out
     assert re.search(r"status: (complete|failed)", out)
     assert re.search(r"review\.json: \S+review\.json", out)
+
+
+@pytest.mark.parametrize("scenario", ["crash_after", "hang"])
+def test_an_agent_that_failed_or_was_stopped_fails_the_command(
+    scenario, tmp_path, workdir, skills, write_registry, capsys, monkeypatch
+):
+    # The files it wrote may parse, yet the run is not trustworthy: the command exits 1.
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "codex_home"))
+    argv = [
+        "review", "--repo", str(workdir), "--base", "base", "--head", "head", "--runner", "fake",
+        "--skills", str(skills), "--runs", str(tmp_path / "runs"), "--timeout-sec", "3",
+        "--registry", str(write_registry(scenario=scenario)),
+    ]  # fmt: skip
+    assert main(argv) == 1

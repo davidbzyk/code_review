@@ -19,7 +19,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-ENTRIES = ("review_core.cli", "review_core.ci.github")
+# The context command too: the review command's --store runs it before any reviewer starts.
+ENTRIES = ("review_core.cli", "review_core.ci.github", "review_core.context.ctx")
 DEST = ".code-review"
 WORKFLOW = Path(".github") / "workflows" / "code-review.yml"
 SKIP_NAMES = {"__pycache__", ".DS_Store"}
