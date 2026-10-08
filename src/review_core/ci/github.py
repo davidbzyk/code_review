@@ -36,6 +36,7 @@ from review_core.contracts.models import (
 )
 
 API = "https://api.github.com"
+TITLE = "Custom Code Review"  # the heading of the review and the summary; --title changes it
 SUMMARY_MARKER = "<!-- code-review-summary -->"
 MAX_BODY = 60_000  # GitHub refuses a review body over 65,536 characters
 # Badge colours per severity: data, so a new level is a row here.
@@ -143,28 +144,39 @@ def _ordered(findings) -> list[Finding]:
     return sorted(findings, key=lambda f: (SEVERITIES.index(f.severity), f.file, f.line_start))
 
 
-def _counts(findings) -> str:
+def _counts(findings, head: str) -> str:
     if not findings:
-        return "No issues found."
-    by = [f"{sum(f.severity == s for f in findings)} {s}" for s in SEVERITIES
-          if any(f.severity == s for f in findings)]  # fmt: skip
+        return f"No issues found on `{head[:7]}`."
     noun = "finding" if len(findings) == 1 else "findings"
-    return f"{len(findings)} {noun}: " + ", ".join(by) + "."
+    chips = [f"{sum(f.severity == s for f in findings)} {s}" for s in SEVERITIES
+             if any(f.severity == s for f in findings)]  # fmt: skip
+    return " · ".join([f"**{len(findings)} {noun}** on `{head[:7]}`", *chips])
 
 
-def _outcome(run) -> list[str]:
+def _outcome(run, head: str) -> list[str]:
     """What the run found, never read as a clean review when reviewers did not finish."""
     if run.envelope.status == "failed":
-        return ["The review did not complete, so no code was checked. The run folder is kept "
-                "as the workflow's code-review-run artifact."]  # fmt: skip
-    lines = [_counts(run.findings)]
+        return [f"**The review did not complete** on `{head[:7]}`, so no code was checked."]
+    lines = [_counts(run.findings, head)]
     unfinished = [r.reviewer for r in run.envelope.reviewers if r.outcome not in SUCCESS_OUTCOMES]
     if unfinished:
         lines += ["", f"Not every reviewer finished: {', '.join(unfinished)}."]
     return lines
 
 
-def review_payload(doc: dict, diff: str, *, head: str, repo: str) -> dict:
+def _permalink(repo: str, head: str, finding: Finding) -> str:
+    # The path comes from the model: encoded, it cannot close the URL or open markup.
+    path = urllib.parse.quote(_clean(finding.file, ""), safe="/")
+    return (f"https://github.com/{repo}/blob/{head}/{path}"
+            f"#L{finding.line_start}-L{finding.line_end}")  # fmt: skip
+
+
+def _footer(run) -> str:
+    env = run.envelope
+    return f"<sub>{env.runner} · {env.model} · effort {env.effort} · Codex {env.cli_version}</sub>"
+
+
+def review_payload(doc: dict, diff: str, *, head: str, repo: str, title: str = TITLE) -> dict:
     """The body of POST /repos/{repo}/pulls/{n}/reviews for one run."""
     run = load_run_envelope(doc)
     lines = commentable_lines(diff)
@@ -175,20 +187,13 @@ def review_payload(doc: dict, diff: str, *, head: str, repo: str) -> dict:
             outside.append(finding)
         else:
             comments.append({**place, "body": render_inline(finding, head)})
-    body = ["### Code review", "", f"**Reviewed commit:** `{head[:10]}`", "", *_outcome(run)]
-    env = run.envelope
-    tail = ["", "<details><summary>About this review</summary>", "",
-            f"Runner {env.runner}, model {env.model}, effort {env.effort}, "
-            f"Codex {env.cli_version}. Reviewers: {', '.join(env.reviewers_planned)}.", "",
-            "</details>"]  # fmt: skip
+    body = [f"### {_title(title)}", "", *_outcome(run, head)]
+    tail = ["", _footer(run)]
     if outside:
         body += ["", "Findings that could not be placed on a line of the diff:"]
         for shown, finding in enumerate(outside):
-            # The path comes from the model: encoded, it cannot close the URL or open markup.
-            path = urllib.parse.quote(_clean(finding.file, ""), safe="/")
-            link = (f"https://github.com/{repo}/blob/{head}/{path}"
-                    f"#L{finding.line_start}-L{finding.line_end}")  # fmt: skip
-            block = ["", "---", "", link, "", _heading(finding), "", _meta(finding), ""]
+            block = ["", "---", "", _permalink(repo, head, finding), "", _heading(finding), "",
+                     _meta(finding), ""]  # fmt: skip
             block += [_inert(p) for p in _description(finding.description)]
             note = ["", f"{len(outside) - shown} more findings are in the run folder."]
             if len("\n".join([*body, *block, *note, *tail])) > MAX_BODY:
@@ -199,19 +204,28 @@ def review_payload(doc: dict, diff: str, *, head: str, repo: str) -> dict:
             "comments": comments}  # fmt: skip
 
 
-def render_summary(doc: dict, *, head: str, change_summary: str | None) -> str:
-    """The summary issue comment: status table, counts and the change summary, collapsed."""
+_SENTENCE = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9`])")
+
+
+def render_summary(doc: dict, *, head: str, repo: str, change_summary: str | None,
+                   title: str = TITLE) -> str:  # fmt: skip
+    """The summary issue comment: the outcome, a table of findings, the change as bullets."""
     run = load_run_envelope(doc)
-    status = STATUS_WORDS.get(run.envelope.status, run.envelope.status)
-    lines = [SUMMARY_MARKER, "## Code review summary", "", "| Review | Status | Commit |",
-             "|---|---|---|", f"| Code review | {status} | `{head[:7]}` |", "",
-             *_outcome(run)]  # fmt: skip
-    paragraphs = _summary(change_summary)
-    if paragraphs:
-        lines += ["", "<details><summary>Summary of the change</summary>", ""]
-        for para in paragraphs:
-            lines += [_inert(para), ""]
-        lines.append("</details>")
+    lines = [SUMMARY_MARKER, f"## {_title(title)}", "", *_outcome(run, head)]
+    if run.findings and run.envelope.status != "failed":
+        lines += ["", "| Severity | Finding | Where |", "|---|---|---|"]
+        for f in _ordered(run.findings):
+            place = (
+                f"{f.line_start}" if f.line_start == f.line_end else f"{f.line_start}-{f.line_end}"
+            )
+            where = f"[{_title(f.file)}:{place}]({_permalink(repo, head, f)})"
+            lines.append(f"| {f.severity} | {_inert(_title(f.title))} | {where} |")
+    sentences = [s for para in _summary(change_summary) for s in _SENTENCE.split(para) if s]
+    if sentences:
+        lines += ["", "<details><summary>What the change does</summary>", ""]
+        lines += [f"- {_inert(s)}" for s in sentences]
+        lines += ["", "</details>"]
+    lines += ["", _footer(run)]
     return "\n".join(lines) + "\n"
 
 
@@ -274,13 +288,14 @@ def _request(method: str, url: str, token: str, body: dict | None = None):
 
 def publish(doc: dict, diff: str, *, head: str, repo: str, pr: int, change_summary: str | None,
             token: str, dry_run: Path | None = None, request: Callable = _request,
-            api: str = API, secrets: list[str] = ()) -> None:  # fmt: skip
+            api: str = API, secrets: list[str] = (), title: str = TITLE) -> None:  # fmt: skip
     """Post the review and create or edit the summary comment; with dry_run, write them instead.
 
     Raises CredentialInOutput, before any call, when the text holds one of `secrets`.
     """
-    payload = review_payload(doc, diff, head=head, repo=repo)
-    summary = render_summary(doc, head=head, change_summary=change_summary)
+    payload = review_payload(doc, diff, head=head, repo=repo, title=title)
+    summary = render_summary(doc, head=head, repo=repo, change_summary=change_summary,
+                             title=title)  # fmt: skip
     _check([*_strings(payload), summary, change_summary or "", *_strings(doc["findings"])],
            list(secrets))  # fmt: skip
     if dry_run is not None:
@@ -354,6 +369,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--pr", type=int, required=True)
     p.add_argument("--summary", type=Path, help="the change summary the orchestrator wrote")
     p.add_argument("--dry-run", type=Path, help="write the payloads here; send nothing")
+    p.add_argument("--title", default=TITLE, help="heading of the review and the summary")
     p.add_argument("--secret-file", type=Path, action="append", default=[],
                    help="a login file whose values must never be posted; repeat")  # fmt: skip
     p.add_argument("--secret-env", action="append", default=[],
@@ -368,7 +384,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         publish(doc, pr_diff(args.repo_dir, args.base, args.head), head=args.head,
                 repo=args.repo, pr=args.pr, change_summary=summary, token=token,
-                dry_run=args.dry_run, secrets=secrets)  # fmt: skip
+                dry_run=args.dry_run, secrets=secrets, title=args.title)  # fmt: skip
     except CredentialInOutput as exc:
         print(f"code-review: {exc}; nothing was posted", file=sys.stderr)
         return 3

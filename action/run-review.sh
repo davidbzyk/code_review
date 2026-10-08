@@ -7,6 +7,9 @@ repo=${GITHUB_WORKSPACE:-$PWD}
 work=${RUNNER_TEMP:-$HOME/.cache/code-review-ci}/code-review
 rm -rf "$work" && mkdir -p "$work"
 export PYTHONPATH="$here/src"
+# Agents can write inside the checkout, so Python never imports from the working directory:
+# -P drops it from the path, and every Python step runs from this folder instead.
+py=(python3 -P)
 
 # The files this pull request changes, less the review tool itself.
 paths=()
@@ -48,19 +51,20 @@ if [ -n "${CR_REGISTRY:-}" ]; then registry=(--registry "$CR_REGISTRY"); fi
 
 # The review never sees the GitHub token; only the post below gets it.
 status=0
-env -u GITHUB_TOKEN python3 -m review_core.cli review --repo "$repo" --base "$CR_BASE" \
+(cd "$here" && env -u GITHUB_TOKEN "${py[@]}" -m review_core.cli review --repo "$repo" --base "$CR_BASE" \
   --head "$CR_HEAD" --runner "$runner" --model "${CR_MODEL:-gpt-6-luna}" \
   --effort "${CR_EFFORT:-high}" --out "$out" --runs "$work/runs" "${registry[@]}" \
-  "${paths[@]}" || status=$?
+  "${paths[@]}") || status=$?
 
 # A failed run still has a review.json; post it so the pull request shows the failure.
 # The agents could read the login; the poster refuses to post any of its values.
-post=(python3 -m review_core.ci.github --runs "$work/runs" --repo-dir "$repo" --base "$CR_BASE"
+post=("${py[@]}" -m review_core.ci.github --runs "$work/runs" --repo-dir "$repo" --base "$CR_BASE"
       --head "$CR_HEAD" --repo "$CR_REPO" --pr "$CR_PR" --summary "$out/pr-summary.md"
       --secret-env OPENAI_API_KEY)
 if [ -n "${CODEX_HOME:-}" ]; then
   post+=(--secret-file "$CODEX_HOME/auth.json" --secret-file "$work/auth.seed.json")
 fi
 if [ -n "${CR_DRY_RUN:-}" ]; then post+=(--dry-run "$CR_DRY_RUN"); fi
-"${post[@]}"
+if [ -n "${CR_TITLE:-}" ]; then post+=(--title "$CR_TITLE"); fi
+(cd "$here" && "${post[@]}")
 exit "$status"

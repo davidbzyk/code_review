@@ -123,8 +123,8 @@ def test_the_payload_puts_anchored_findings_inline_and_the_rest_in_the_body():
     assert payload["commit_id"] == HEAD and payload["event"] == "COMMENT"
     assert [c["path"] for c in payload["comments"]] == ["app/server.py"]
     body = payload["body"]
-    assert body.startswith("### Code review")
-    assert f"**Reviewed commit:** `{HEAD[:10]}`" in body
+    assert body.startswith("### Custom Code Review")
+    assert f"**2 findings** on `{HEAD[:7]}`" in body
     assert f"https://github.com/o/r/blob/{HEAD}/app/server.py#L40-L41" in body
     assert "Far away" in body
     assert not gh.EMOJI.search(body)
@@ -133,13 +133,24 @@ def test_the_payload_puts_anchored_findings_inline_and_the_rest_in_the_body():
 def test_no_findings_still_posts_a_body_and_no_comments():
     payload = gh.review_payload(review_doc([]), DIFF, head=HEAD, repo="o/r")
     assert payload["comments"] == [] and "No issues found" in payload["body"]
+    assert "About this review" not in payload["body"]
+    assert "<sub>codex-clean · gpt-6-luna · effort high · Codex 0.160.0</sub>" in payload["body"]
 
 
-def test_the_summary_comment_carries_its_marker_status_and_commit():
-    text = gh.render_summary(review_doc([finding()]), head=HEAD, change_summary="Adds a handler.")
-    assert text.startswith(gh.SUMMARY_MARKER)
-    assert "| Code review | Completed | `" + HEAD[:7] + "` |" in text
-    assert "Adds a handler." in text and not gh.EMOJI.search(text)
+def test_the_summary_comment_lists_findings_and_the_change_as_bullets():
+    doc = review_doc([finding(), finding(line_start=40, line_end=41, title="Far away",
+                                         fingerprint="e" * 64, severity="P3")])  # fmt: skip
+    text = gh.render_summary(doc, head=HEAD, repo="o/r",
+                             change_summary="Adds a handler. It also logs rows.")  # fmt: skip
+    assert text.startswith(gh.SUMMARY_MARKER + "\n## Custom Code Review")
+    assert f"**2 findings** on `{HEAD[:7]}`" in text
+    assert "| Code review | Completed |" not in text  # no one-row status table
+    assert "| Severity | Finding | Where |" in text
+    assert (f"| P1 | SQL built from request input | "
+            f"[app/server.py:11](https://github.com/o/r/blob/{HEAD}/app/server.py#L11-L11) |"
+            ) in text  # fmt: skip
+    assert "- Adds a handler.\n- It also logs rows." in text
+    assert not gh.EMOJI.search(text)
 
 
 def test_dry_run_writes_the_payloads_and_calls_nothing(tmp_path):
@@ -234,8 +245,8 @@ def test_a_failed_run_never_reads_as_a_clean_review():
     body = gh.review_payload(doc, DIFF, head=HEAD, repo="o/r")["body"]
     assert "No issues found" not in body
     assert "The review did not complete" in body
-    summary = gh.render_summary(doc, head=HEAD, change_summary=None)
-    assert "| Code review | Failed |" in summary and "No issues found" not in summary
+    summary = gh.render_summary(doc, head=HEAD, repo="o/r", change_summary=None)
+    assert "The review did not complete" in summary and "No issues found" not in summary
 
 
 def test_a_partial_run_names_the_reviewers_that_did_not_finish():

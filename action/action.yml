@@ -25,6 +25,14 @@ inputs:
   dry-run:
     description: Write the review payloads to this folder instead of posting them.
     default: ""
+  title:
+    description: Heading of the review and the summary comment.
+    default: Custom Code Review
+  keep-run:
+    description: >-
+      Upload the run folder as an artifact. It holds every command the agents ran and its
+      output, so anyone who can read the repository can read it; off by default.
+    default: "false"
 runs:
   using: composite
   steps:
@@ -53,12 +61,13 @@ runs:
         CR_REPO: ${{ github.repository }}
         CR_PR: ${{ github.event.pull_request.number }}
         CR_DRY_RUN: ${{ inputs.dry-run }}
+        CR_TITLE: ${{ inputs.title }}
         CODEX_AUTH_JSON_B64: ${{ inputs.codex-auth-json-b64 }}
         OPENAI_API_KEY: ${{ inputs.openai-api-key }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: bash "$GITHUB_ACTION_PATH/run-review.sh"
     - name: Keep the run folder
-      if: always()
+      if: always() && inputs.keep-run == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: code-review-run

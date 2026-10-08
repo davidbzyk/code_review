@@ -16,6 +16,7 @@ spec.loader.exec_module(bundle)
 def test_install_copies_the_tool_skills_action_and_workflow_and_nothing_else(workdir):
     dest = bundle.install(workdir)
     assert (dest / "action.yml").is_file() and (dest / "run-review.sh").is_file()
+    assert (dest / "ruff.toml").is_file()  # a host's ruff lints the copy with its own settings
     assert (dest / "src" / "review_core" / "cli.py").is_file()
     assert (dest / "src" / "review_core" / "launcher" / "runners.toml").is_file()
     assert (dest / "src" / "plugin" / "skills" / "review-orchestrator" / "SKILL.md").is_file()
@@ -56,7 +57,7 @@ def test_the_installed_copy_alone_runs_a_review_and_a_dry_run_post(
     )  # fmt: skip
     assert post.returncode == 0, post.stderr
     payload = json.loads((tmp_path / "post" / "review.json").read_text())
-    assert payload["event"] == "COMMENT" and payload["body"].startswith("### Code review")
+    assert payload["event"] == "COMMENT" and payload["body"].startswith("### Custom Code Review")
     assert payload["comments"], "the fake agent's findings sit on app.py lines of the diff"
     assert all(c["path"] == "app.py" for c in payload["comments"])
 
@@ -76,11 +77,11 @@ def test_run_review_sh_reviews_and_dry_runs_with_the_token_kept_from_the_review(
                           text=True)  # fmt: skip
     assert done.returncode == 0, done.stderr
     payload = json.loads((tmp_path / "post" / "review.json").read_text())
-    assert payload["comments"] and payload["body"].startswith("### Code review")
+    assert payload["comments"] and payload["body"].startswith("### Custom Code Review")
     # Codex's sandbox lets agents write only inside the checkout, so the output folder is there.
     assert (workdir / ".code-review-out").is_dir()
     script = (dest / "run-review.sh").read_text()
-    assert "env -u GITHUB_TOKEN python3 -m review_core.cli review" in script
+    assert 'env -u GITHUB_TOKEN "${py[@]}" -m review_core.cli review' in script
 
 
 def test_run_review_sh_skips_a_change_that_only_touches_the_tool(workdir, tmp_path):
@@ -106,3 +107,29 @@ def test_run_review_sh_hands_the_poster_both_logins_and_the_api_key_name():
     script = (ROOT / "action" / "run-review.sh").read_text()
     assert '--secret-file "$CODEX_HOME/auth.json" --secret-file "$work/auth.seed.json"' in script
     assert "--secret-env OPENAI_API_KEY" in script
+
+
+def test_a_module_planted_in_the_checkout_is_never_imported(workdir, write_registry, tmp_path):
+    # Agents can write inside the checkout; python -m would import from the working directory.
+    dest = bundle.install(workdir)
+    planted = workdir / "review_core"
+    planted.mkdir()
+    (planted / "__init__.py").write_text("raise SystemExit('planted module ran')\n")
+    env = {
+        "PATH": os.environ["PATH"], "HOME": str(tmp_path), "RUNNER_TEMP": str(tmp_path / "rt"),
+        "GITHUB_WORKSPACE": str(workdir), "CR_BASE": "base", "CR_HEAD": "head",
+        "CR_REPO": "o/r", "CR_PR": "1", "CR_DRY_RUN": str(tmp_path / "post"),
+        "CR_RUNNER": "fake", "CR_REGISTRY": str(write_registry()), "CODEX_AUTH_JSON_B64": "e30=",
+    }  # fmt: skip
+    done = subprocess.run(["bash", str(dest / "run-review.sh")], cwd=workdir, env=env,
+                          capture_output=True, text=True)  # fmt: skip
+    assert "planted module ran" not in done.stdout + done.stderr
+    assert done.returncode == 0, done.stderr
+
+
+def test_the_run_folder_is_uploaded_only_when_asked():
+    text = (ROOT / "action" / "action.yml").read_text()
+    upload = text[text.index("uses: actions/upload-artifact") :]
+    assert "inputs.keep-run == 'true'" in text[: text.index("uses: actions/upload-artifact")]
+    assert 'default: "false"' in text.split("keep-run:")[1].split("runs:")[0]
+    assert upload
