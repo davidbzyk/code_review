@@ -77,6 +77,8 @@ def test_run_review_sh_reviews_and_dry_runs_with_the_token_kept_from_the_review(
     assert done.returncode == 0, done.stderr
     payload = json.loads((tmp_path / "post" / "review.json").read_text())
     assert payload["comments"] and payload["body"].startswith("### Code review")
+    # Codex's sandbox lets agents write only inside the checkout, so the output folder is there.
+    assert (workdir / ".code-review-out").is_dir()
     script = (dest / "run-review.sh").read_text()
     assert "env -u GITHUB_TOKEN python3 -m review_core.cli review" in script
 

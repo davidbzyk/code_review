@@ -293,3 +293,23 @@ def test_a_summary_hardlinked_to_another_file_is_not_read(tmp_path):
     link = tmp_path / "pr-summary.md"
     os.link(secret, link)
     assert gh.read_summary(link) is None
+
+
+def test_a_credential_split_by_markdown_escapes_is_still_caught():
+    refresh = "rt_fake-refresh-token_value_abcdef"
+    # Outside the diff, the title appears only escaped (rt\\_fake...), never in a fence.
+    leaked = review_doc([finding(title=f"token {refresh}", line_start=40, line_end=41)])
+    try:
+        gh.publish(leaked, DIFF, head=HEAD, repo="o/r", pr=7, change_summary=None, token="t",
+                   request=lambda *a, **k: None, secrets=[refresh])  # fmt: skip
+    except gh.CredentialInOutput:
+        return
+    raise AssertionError("an escaped credential must still stop the post")
+
+
+def test_an_unreadable_login_file_stops_the_post_instead_of_checking_nothing(tmp_path):
+    try:
+        gh.credentials([tmp_path / "missing.json"], [])
+    except gh.CredentialInOutput:
+        return
+    raise AssertionError("a login file that cannot be read must fail closed")

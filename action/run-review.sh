@@ -11,7 +11,7 @@ export PYTHONPATH="$here/src"
 # The files this pull request changes, less the review tool itself.
 paths=()
 while IFS= read -r path; do
-  case "$path" in .code-review/*|"") ;; *) paths+=(--path "$path") ;; esac
+  case "$path" in .code-review/*|.code-review-out/*|"") ;; *) paths+=(--path "$path") ;; esac
 done < <(git -C "$repo" diff --no-ext-diff --name-only --diff-filter=ACMR "$CR_BASE...$CR_HEAD")
 if [ ${#paths[@]} -eq 0 ]; then
   echo "code-review: no changed files outside .code-review/, nothing to review"
@@ -37,6 +37,10 @@ case "${CR_AUTH:-subscription}" in
   *) echo "code-review: auth must be subscription or api-key, not ${CR_AUTH}" >&2; exit 2 ;;
 esac
 
+# Codex's sandbox lets agents write only inside the checkout, so the findings go there.
+out="$repo/.code-review-out"
+rm -rf "$out"
+
 # CR_RUNNER and CR_REGISTRY swap in another runner row (a test's fake agent, a new provider).
 runner=${CR_RUNNER:-$runner}
 registry=()
@@ -46,13 +50,13 @@ if [ -n "${CR_REGISTRY:-}" ]; then registry=(--registry "$CR_REGISTRY"); fi
 status=0
 env -u GITHUB_TOKEN python3 -m review_core.cli review --repo "$repo" --base "$CR_BASE" \
   --head "$CR_HEAD" --runner "$runner" --model "${CR_MODEL:-gpt-6-luna}" \
-  --effort "${CR_EFFORT:-high}" --out "$work/out" --runs "$work/runs" "${registry[@]}" \
+  --effort "${CR_EFFORT:-high}" --out "$out" --runs "$work/runs" "${registry[@]}" \
   "${paths[@]}" || status=$?
 
 # A failed run still has a review.json; post it so the pull request shows the failure.
 # The agents could read the login; the poster refuses to post any of its values.
 post=(python3 -m review_core.ci.github --runs "$work/runs" --repo-dir "$repo" --base "$CR_BASE"
-      --head "$CR_HEAD" --repo "$CR_REPO" --pr "$CR_PR" --summary "$work/out/pr-summary.md"
+      --head "$CR_HEAD" --repo "$CR_REPO" --pr "$CR_PR" --summary "$out/pr-summary.md"
       --secret-env OPENAI_API_KEY)
 if [ -n "${CODEX_HOME:-}" ]; then
   post+=(--secret-file "$CODEX_HOME/auth.json" --secret-file "$work/auth.seed.json")

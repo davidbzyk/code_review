@@ -269,9 +269,20 @@ def _store(tmp_path, provider="vector"):
         okf = Path(__file__).parents[1] / "context" / "fixtures" / "okf-bundle"
         built = {}
         for arm in ("vector", "okf"):
-            argv = ["--case", slug, "--arm", arm, "--snapshots-dir", str(snaps),
-                    "--out", str(root / "stores"), "--cache-dir", str(root / "cache"),
-                    "--fake-embedder", *(["--okf-bundle", str(okf)] if arm == "okf" else [])]
+            argv = [
+                "--case",
+                slug,
+                "--arm",
+                arm,
+                "--snapshots-dir",
+                str(snaps),
+                "--out",
+                str(root / "stores"),
+                "--cache-dir",
+                str(root / "cache"),
+                "--fake-embedder",
+                *(["--okf-bundle", str(okf)] if arm == "okf" else []),
+            ]
             seen = io.StringIO()
             with contextlib.redirect_stdout(seen), contextlib.redirect_stderr(seen):
                 assert build_stores.main(argv) == 0, seen.getvalue()

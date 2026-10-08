@@ -90,6 +90,8 @@ def test_a_row_lets_commands_reach_the_network_only_when_it_says_so():
     assert registry["codex-net"].permissions.network and not registry["codex"].permissions.network
     same = [a for a in registry["codex-net"].argv if a not in ("-c", flag)]
     assert same == [a for a in registry["codex"].argv if a != "-c"]
+
+
 # Signed in with a ChatGPT subscription, Codex also loads the account's connected apps. In CI
 # run 37839209776 (plugins #223) a reviewer called Desktop Commander on the owner's Mac through
 # them. An agent that reads untrusted pull request text must reach none of these.

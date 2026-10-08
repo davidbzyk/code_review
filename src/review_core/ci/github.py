@@ -242,16 +242,21 @@ def credentials(files: list[Path], names: list[str]) -> list[str]:
     for path in files:
         try:
             found.update(_strings(json.loads(Path(path).read_text(encoding="utf-8"))))
-        except (OSError, ValueError):
-            continue
+        except (OSError, ValueError) as exc:  # unchecked is unsafe: stop rather than post
+            raise CredentialInOutput(f"cannot read the login file {path} to check against") from exc
     found.update(os.environ.get(n, "") for n in names)
     return sorted(s for s in found if len(s) >= MIN_CREDENTIAL)
 
 
+def _forms(text: str) -> tuple[str, str]:
+    """The text as sent and as GitHub shows it: Markdown escapes and whitespace removed."""
+    return text, re.sub(r"\s+", "", text.replace("\\", ""))
+
+
 def _check(texts: list[str], secrets: list[str]) -> None:
     for text in texts:
-        for secret in secrets:
-            if secret in text:
+        for form in _forms(text):
+            if any(secret in form for secret in secrets):
                 raise CredentialInOutput("the review output holds a credential of this run")
 
 
@@ -276,7 +281,8 @@ def publish(doc: dict, diff: str, *, head: str, repo: str, pr: int, change_summa
     """
     payload = review_payload(doc, diff, head=head, repo=repo)
     summary = render_summary(doc, head=head, change_summary=change_summary)
-    _check([*_strings(payload), summary, change_summary or ""], list(secrets))
+    _check([*_strings(payload), summary, change_summary or "", *_strings(doc["findings"])],
+           list(secrets))  # fmt: skip
     if dry_run is not None:
         dry_run.mkdir(parents=True, exist_ok=True)
         (dry_run / "review.json").write_text(json.dumps(payload, indent=2) + "\n")
