@@ -176,18 +176,42 @@ def _footer(run) -> str:
     return f"<sub>{env.runner} · {env.model} · effort {env.effort} · Codex {env.cli_version}</sub>"
 
 
-def review_payload(doc: dict, diff: str, *, head: str, repo: str, title: str = TITLE) -> dict:
-    """The body of POST /repos/{repo}/pulls/{n}/reviews for one run."""
+_MARKER = re.compile(r"<!-- code-review:v1 (\{.*?\}) -->")
+
+
+def posted_fingerprints(bodies: list[str]) -> set[str]:
+    """Fingerprints of the findings our earlier reviews already posted, read from their markers."""
+    found = set()
+    for body in bodies:
+        for raw in _MARKER.findall(body or ""):
+            try:
+                found.add(json.loads(raw)["fingerprint"])
+            except (ValueError, KeyError, TypeError):
+                continue
+    return found
+
+
+def review_payload(doc: dict, diff: str, *, head: str, repo: str, title: str = TITLE,
+                   posted: set[str] = frozenset()) -> dict:  # fmt: skip
+    """The body of POST /repos/{repo}/pulls/{n}/reviews for one run.
+
+    A finding whose fingerprint is in `posted` is already on the pull request and is left out.
+    """
     run = load_run_envelope(doc)
     lines = commentable_lines(diff)
-    comments, outside = [], []
+    comments, outside, repeated = [], [], 0
     for finding in _ordered(run.findings):
+        if finding.fingerprint in posted:
+            repeated += 1
+            continue
         place = anchor(finding, lines)
         if place is None:
             outside.append(finding)
         else:
             comments.append({**place, "body": render_inline(finding, head)})
     body = [f"### {_title(title)}", "", *_outcome(run, head)]
+    if repeated:
+        body += ["", f"{repeated} already posted on an earlier commit; not repeated here."]
     tail = ["", _footer(run)]
     if outside:
         body += ["", "Findings that could not be placed on a line of the diff:"]
@@ -286,6 +310,17 @@ def _request(method: str, url: str, token: str, body: dict | None = None):
     return json.loads(raw) if raw else {}
 
 
+def _pages(request: Callable, url: str, token: str, limit: int = 50) -> list[dict]:
+    """Every item of a paged GitHub list, up to `limit` pages of 100."""
+    items: list[dict] = []
+    for page in range(1, limit + 1):
+        batch = request("GET", f"{url}?per_page=100&page={page}", token)
+        items += batch
+        if len(batch) < 100:
+            break
+    return items
+
+
 def publish(doc: dict, diff: str, *, head: str, repo: str, pr: int, change_summary: str | None,
             token: str, dry_run: Path | None = None, request: Callable = _request,
             api: str = API, secrets: list[str] = (), title: str = TITLE) -> None:  # fmt: skip
@@ -293,7 +328,12 @@ def publish(doc: dict, diff: str, *, head: str, repo: str, pr: int, change_summa
 
     Raises CredentialInOutput, before any call, when the text holds one of `secrets`.
     """
-    payload = review_payload(doc, diff, head=head, repo=repo, title=title)
+    _check([change_summary or "", *_strings(doc["findings"])], list(secrets))  # before any call
+    posted = set()
+    if dry_run is None:
+        url = f"{api}/repos/{repo}/pulls/{pr}/comments"
+        posted = posted_fingerprints([c.get("body", "") for c in _pages(request, url, token)])
+    payload = review_payload(doc, diff, head=head, repo=repo, title=title, posted=posted)
     summary = render_summary(doc, head=head, repo=repo, change_summary=change_summary,
                              title=title)  # fmt: skip
     _check([*_strings(payload), summary, change_summary or "", *_strings(doc["findings"])],
@@ -304,13 +344,8 @@ def publish(doc: dict, diff: str, *, head: str, repo: str, pr: int, change_summa
         (dry_run / "summary.md").write_text(summary)
         return
     request("POST", f"{api}/repos/{repo}/pulls/{pr}/reviews", token, payload)
-    ours = []
-    for page in range(1, 51):  # 5000 comments; a pull request with more gets a second summary
-        batch = request("GET", f"{api}/repos/{repo}/issues/{pr}/comments?per_page=100&page={page}",
-                        token)  # fmt: skip
-        ours += [c for c in batch if str(c.get("body", "")).startswith(SUMMARY_MARKER)]
-        if len(batch) < 100:
-            break
+    comments = _pages(request, f"{api}/repos/{repo}/issues/{pr}/comments", token)
+    ours = [c for c in comments if str(c.get("body", "")).startswith(SUMMARY_MARKER)]
     if ours:
         request("PATCH", f"{api}/repos/{repo}/issues/comments/{ours[-1]['id']}", token,
                 {"body": summary})  # fmt: skip

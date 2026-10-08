@@ -175,6 +175,7 @@ def test_publish_posts_the_review_and_edits_an_existing_summary_in_place():
     gh.publish(review_doc([finding()]), DIFF, head=HEAD, repo="o/r", pr=7, change_summary=None,
                token="t", request=request)  # fmt: skip
     assert calls == [
+        ("GET", "https://api.github.com/repos/o/r/pulls/7/comments?per_page=100&page=1"),
         ("POST", "https://api.github.com/repos/o/r/pulls/7/reviews"),
         ("GET", "https://api.github.com/repos/o/r/issues/7/comments?per_page=100&page=1"),
         ("PATCH", "https://api.github.com/repos/o/r/issues/comments/9"),
@@ -324,3 +325,22 @@ def test_an_unreadable_login_file_stops_the_post_instead_of_checking_nothing(tmp
     except gh.CredentialInOutput:
         return
     raise AssertionError("a login file that cannot be read must fail closed")
+
+
+def test_a_finding_already_posted_on_this_pull_request_is_not_posted_again():
+    calls = []
+    earlier = gh.render_inline(load_run_envelope(review_doc([finding()])).findings[0], "a" * 40)
+
+    def request(method, url, token, body=None):
+        calls.append((method, url, body))
+        if method == "GET" and "/pulls/7/comments" in url:
+            return [{"id": 1, "body": earlier}] if url.endswith("page=1") else []
+        return [] if method == "GET" else {}
+
+    doc = review_doc([finding(), finding(line_start=12, line_end=12, title="New one",
+                                         fingerprint="d" * 64)])  # fmt: skip
+    gh.publish(doc, DIFF, head=HEAD, repo="o/r", pr=7, change_summary=None, token="t",
+               request=request)  # fmt: skip
+    review = next(b for m, u, b in calls if m == "POST" and u.endswith("/reviews"))
+    assert [c["body"].split("**")[1].split("  ")[-1] for c in review["comments"]] == ["New one"]
+    assert "1 already posted on an earlier commit" in review["body"]

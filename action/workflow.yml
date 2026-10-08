@@ -16,15 +16,19 @@ concurrency:
 jobs:
   review:
     # Drafts wait; pull requests from forks get no secrets, so they are not reviewed.
+    # Dependabot pull requests get no secrets either, so they are skipped rather than failed.
     if: >-
       !github.event.pull_request.draft &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          # The agents can read the checkout; the job token must not sit in .git/config.
+          persist-credentials: false
       - uses: ./.code-review
         with:
           auth: ${{ vars.CODE_REVIEW_AUTH || 'subscription' }}

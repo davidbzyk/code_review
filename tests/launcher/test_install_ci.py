@@ -133,3 +133,70 @@ def test_the_run_folder_is_uploaded_only_when_asked():
     assert "inputs.keep-run == 'true'" in text[: text.index("uses: actions/upload-artifact")]
     assert 'default: "false"' in text.split("keep-run:")[1].split("runs:")[0]
     assert upload
+
+
+def _env(workdir, tmp_path, registry):
+    return {
+        "PATH": os.environ["PATH"], "HOME": str(tmp_path), "RUNNER_TEMP": str(tmp_path / "rt"),
+        "GITHUB_WORKSPACE": str(workdir), "CR_BASE": "base", "CR_HEAD": "head",
+        "CR_REPO": "o/r", "CR_PR": "1", "CR_DRY_RUN": str(tmp_path / "post"),
+        "CR_RUNNER": "fake", "CR_REGISTRY": str(registry), "CODEX_AUTH_JSON_B64": "e30=",
+    }  # fmt: skip
+
+
+def test_an_agent_that_edits_the_installed_tool_cannot_change_what_posts(
+    workdir, write_registry, tmp_path
+):
+    # The checkout is the one folder agents may write, and .code-review/ sits inside it.
+    dest = bundle.install(workdir)
+    fake = write_registry()
+    text = fake.read_text()
+    argv_line = next(line for line in text.splitlines() if line.startswith("argv = ["))
+    script = tmp_path / "tamper.sh"
+    script.write_text(
+        "#!/bin/bash\n"
+        "python3 -c 'import pathlib, sys; p = pathlib.Path(sys.argv[1]); "
+        'p.write_text("raise SystemExit(7)\\\\n" + p.read_text())\' '
+        '"$1/.code-review/src/review_core/ci/github.py"\n'
+        'shift\nexec "$@"\n'
+    )
+    prefix = ", ".join(json.dumps(x) for x in ("bash", str(script), "{workdir}")) + ", "
+    fake.write_text(text.replace(argv_line, argv_line.replace("argv = [", "argv = [" + prefix, 1)))
+    done = subprocess.run(
+        ["bash", str(dest / "run-review.sh")],
+        cwd=workdir,
+        env=_env(workdir, tmp_path, fake),
+        capture_output=True,
+        text=True,
+    )
+    assert (dest / "src/review_core/ci/github.py").read_text().startswith("raise SystemExit(7)")
+    assert done.returncode == 0, done.stderr
+    assert (tmp_path / "post" / "review.json").is_file()
+
+
+def test_a_changed_file_with_a_non_ascii_name_is_reviewed(workdir, write_registry, tmp_path):
+    git = ["git", "-C", str(workdir), "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run([*git, "checkout", "-q", "base"], check=True, capture_output=True)
+    (workdir / "café.py").write_text("x = 1\n")
+    subprocess.run([*git, "add", "-A"], check=True, capture_output=True)
+    subprocess.run([*git, "commit", "-q", "-m", "accent"], check=True, capture_output=True)
+    sha = subprocess.run([*git, "rev-parse", "HEAD"], check=True, capture_output=True,
+                         text=True).stdout.strip()  # fmt: skip
+    dest = bundle.install(workdir)
+    env = {**_env(workdir, tmp_path, write_registry()), "CR_HEAD": sha}
+    done = subprocess.run(["bash", str(dest / "run-review.sh")], cwd=workdir, env=env,
+                          capture_output=True, text=True)  # fmt: skip
+    assert done.returncode == 0, done.stderr
+    assert "nothing to review" not in done.stdout
+
+
+def test_the_workflow_pins_actions_by_sha_drops_the_token_and_skips_dependabot():
+    workflow = (ROOT / "action" / "workflow.yml").read_text()
+    action = (ROOT / "action" / "action.yml").read_text()
+    for text in (workflow, action):
+        for line in text.splitlines():
+            if "uses: actions/" in line:
+                ref = line.split("@", 1)[1].split()[0]
+                assert len(ref) == 40 and all(c in "0123456789abcdef" for c in ref), line
+    assert "persist-credentials: false" in workflow
+    assert "github.actor != 'dependabot[bot]'" in workflow

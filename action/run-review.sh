@@ -2,20 +2,24 @@
 # Review one pull request with the Codex review team and post the result. Called by action.yml;
 # runs the same way on a laptop given the CR_* variables (CR_DRY_RUN=DIR posts nothing).
 set -euo pipefail
-here=$(cd "$(dirname "$0")" && pwd)
 repo=${GITHUB_WORKSPACE:-$PWD}
 work=${RUNNER_TEMP:-$HOME/.cache/code-review-ci}/code-review
 rm -rf "$work" && mkdir -p "$work"
+# The agents may write anywhere in the checkout, .code-review/ included, so everything below runs
+# from a copy taken before they start, outside the checkout.
+here="$work/tool"
+cp -R "$(cd "$(dirname "$0")" && pwd)" "$here"
 export PYTHONPATH="$here/src"
 # Agents can write inside the checkout, so Python never imports from the working directory:
 # -P drops it from the path, and every Python step runs from this folder instead.
 py=(python3 -P)
 
 # The files this pull request changes, less the review tool itself.
+# NUL-separated, so a name git would quote (non-ASCII, spaces) arrives as itself.
 paths=()
-while IFS= read -r path; do
+while IFS= read -r -d '' path; do
   case "$path" in .code-review/*|.code-review-out/*|"") ;; *) paths+=(--path "$path") ;; esac
-done < <(git -C "$repo" diff --no-ext-diff --name-only --diff-filter=ACMR "$CR_BASE...$CR_HEAD")
+done < <(git -C "$repo" diff --no-ext-diff -z --name-only --diff-filter=ACMR "$CR_BASE...$CR_HEAD")
 if [ ${#paths[@]} -eq 0 ]; then
   echo "code-review: no changed files outside .code-review/, nothing to review"
   exit 0
