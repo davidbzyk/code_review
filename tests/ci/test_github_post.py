@@ -163,6 +163,16 @@ def test_dry_run_writes_the_payloads_and_calls_nothing(tmp_path):
     assert (tmp_path / "summary.md").read_text().startswith(gh.SUMMARY_MARKER)
 
 
+def test_a_dry_run_with_no_findings_does_not_claim_the_pr_is_clean(tmp_path):
+    """A dry run reads no earlier threads, so it cannot say none of them are still open."""
+    gh.publish(review_doc([]), DIFF, head=HEAD, repo="o/r", pr=7, change_summary=None,
+               token="t", dry_run=tmp_path, request=lambda *a: None)  # fmt: skip
+    for text in (json.loads((tmp_path / "review.json").read_text())["body"],
+                 (tmp_path / "summary.md").read_text()):  # fmt: skip
+        assert "No issues found" not in text
+        assert "Earlier findings could not be read" in text
+
+
 def test_publish_posts_the_review_and_edits_an_existing_summary_in_place():
     calls = []
 
@@ -179,6 +189,7 @@ def test_publish_posts_the_review_and_edits_an_existing_summary_in_place():
     assert calls == [
         ("GET", "https://api.github.com/repos/o/r/pulls/7/comments?per_page=100&page=1"),
         ("GET", "https://api.github.com/repos/o/r/pulls/7/reviews?per_page=100&page=1"),
+        ("POST", "https://api.github.com/graphql"),  # which earlier threads are still open
         ("POST", "https://api.github.com/repos/o/r/pulls/7/reviews"),
         ("GET", "https://api.github.com/repos/o/r/issues/7/comments?per_page=100&page=1"),
         ("PATCH", "https://api.github.com/repos/o/r/issues/comments/9"),
@@ -471,3 +482,99 @@ def test_a_multi_line_comment_names_its_start_side():
     lines = gh.commentable_lines(DIFF)
     f = load_run_envelope(review_doc([finding(line_start=11, line_end=12)])).findings[0]
     assert gh.anchor(f, lines)["start_side"] == "RIGHT"
+
+
+def test_a_clean_rerun_never_reads_as_clean_while_earlier_findings_are_open():
+    text = gh.render_summary(review_doc([]), head=HEAD, repo="o/r", change_summary=None,
+                             still_open=2)  # fmt: skip
+    assert "No issues found" not in text
+    assert f"No new issues on `{HEAD[:7]}`" in text and "2 earlier findings are still open" in text
+    plain = gh.render_summary(review_doc([]), head=HEAD, repo="o/r", change_summary=None)
+    assert f"No issues found on `{HEAD[:7]}`" in plain
+
+
+def test_a_rerun_that_could_not_read_earlier_threads_never_reads_as_clean():
+    text = gh.render_summary(review_doc([]), head=HEAD, repo="o/r", change_summary=None,
+                             still_open=None)  # fmt: skip
+    assert "No issues found" not in text and "could not be read" in text
+
+
+def test_a_finding_left_in_an_earlier_review_body_keeps_the_summary_from_reading_clean():
+    earlier = gh.review_payload(review_doc([finding(file="lib/elsewhere.py")]), DIFF,
+                                head="d" * 40, repo="o/r")["body"]  # fmt: skip
+    sent = []
+
+    def request(method, url, token, body=None):
+        if method == "GET" and url.split("?")[0].endswith("/pulls/7/reviews"):
+            return [{"user": {"login": "github-actions[bot]"}, "body": earlier,
+                     "submitted_at": "2026-10-09T01:00:00Z", "commit_id": "d" * 40}]  # fmt: skip
+        if method == "GET":
+            return []
+        if url.endswith("/graphql"):  # no review threads at all
+            return {"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}}}
+        sent.append(body or {})
+        return {}
+
+    gh.publish(review_doc([]), DIFF, head=HEAD, repo="o/r", pr=7, change_summary=None,
+               token="t", request=request)  # fmt: skip
+    summary = next(b["body"] for b in sent if gh.SUMMARY_MARKER in b.get("body", ""))
+    assert "No issues found" not in summary and "1 earlier finding is still open" in summary
+
+
+def test_a_body_finding_on_a_file_changed_since_stops_counting_as_open(tmp_path):
+    import subprocess
+
+    git = ["git", "-C", str(tmp_path), "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run([*git, "init", "-q"], check=True)
+    (tmp_path / "lib").mkdir()
+    (tmp_path / "lib" / "elsewhere.py").write_text("a\n")
+    subprocess.run([*git, "add", "-A"], check=True)
+    subprocess.run([*git, "commit", "-qm", "a"], check=True)
+    first = subprocess.run(
+        [*git, "rev-parse", "HEAD"], capture_output=True, text=True
+    ).stdout.strip()
+    (tmp_path / "lib" / "elsewhere.py").write_text("fixed\n")
+    subprocess.run([*git, "commit", "-qam", "fix"], check=True)
+    head = subprocess.run(
+        [*git, "rev-parse", "HEAD"], capture_output=True, text=True
+    ).stdout.strip()
+    earlier = gh.review_payload(review_doc([finding(file="lib/elsewhere.py")]), DIFF,
+                                head=first, repo="o/r")["body"]  # fmt: skip
+    sent = []
+
+    def request(method, url, token, body=None):
+        if method == "GET" and url.split("?")[0].endswith("/pulls/7/reviews"):
+            return [{"user": {"login": "github-actions[bot]"}, "body": earlier,
+                     "submitted_at": "2026-10-09T01:00:00Z", "commit_id": first}]  # fmt: skip
+        if method == "GET":
+            return []
+        if url.endswith("/graphql"):
+            return {"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}}}
+        sent.append(body or {})
+        return {}
+
+    gh.publish(review_doc([]), DIFF, head=head, repo="o/r", pr=7, change_summary=None,
+               token="t", request=request, repo_dir=tmp_path)  # fmt: skip
+    summary = next(b["body"] for b in sent if gh.SUMMARY_MARKER in b.get("body", ""))
+    assert f"No issues found on `{head[:7]}`" in summary
+
+
+def test_the_posted_review_body_never_reads_clean_while_earlier_findings_are_open():
+    sent = []
+    thread = {"isResolved": False, "isOutdated": False, "path": "a.py", "line": 1,
+              "comments": {"nodes": [{"author": {"login": "github-actions"},
+                                      "body": "x <!-- code-review:v1 {\"f\": 1} -->",
+                                      "createdAt": "2026-10-09T00:00:00Z"}]}}  # fmt: skip
+
+    def request(method, url, token, body=None):
+        if method == "GET":
+            return []
+        if url.endswith("/graphql"):
+            return {"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": [thread]}}}}}
+        sent.append((url, body or {}))
+        return {}
+
+    gh.publish(review_doc([]), DIFF, head=HEAD, repo="o/r", pr=7, change_summary=None,
+               token="t", request=request)  # fmt: skip
+    review = next(b for u, b in sent if u.endswith("/pulls/7/reviews"))
+    assert "No issues found" not in review["body"] and "No new issues" in review["body"]

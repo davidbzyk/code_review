@@ -43,7 +43,13 @@ from review_core.launcher.render import (
 from review_core.launcher.render import (
     context_command as _context_command,
 )
-from review_core.launcher.runners import RegistryError, agent_env, load_registry, read_secrets
+from review_core.launcher.runners import (
+    RegistryError,
+    RunnerEntry,
+    agent_env,
+    load_registry,
+    read_secrets,
+)
 from review_core.launcher.team import (
     TEAMS,
     read_team,
@@ -54,6 +60,11 @@ from review_core.launcher.team import (
 from review_core.pipeline_digest import pipeline_digest
 
 DEFAULT_RUNS = Path(__file__).resolve().parents[3] / "runs"
+# Codex's workspace-write sandbox also lets commands write /tmp and $TMPDIR unless a row opts out.
+CODEX_TMP_OPT_OUTS = {
+    "/tmp": "sandbox_workspace_write.exclude_slash_tmp=true",
+    "TMPDIR": "sandbox_workspace_write.exclude_tmpdir_env_var=true",
+}
 # The folder that holds this package, for the search command's import path.
 SRC = Path(__file__).resolve().parents[2]
 # Arms a store can declare, and every arm a run can be of.
@@ -267,6 +278,20 @@ def _close_ctx(run_dir: Path, out_dir: Path, check: str = "") -> None:
     run_dir.joinpath("ctx.json").write_text(json.dumps(record, indent=2) + "\n")
 
 
+def _agent_writable(entry: RunnerEntry, start: Path) -> list[Path]:
+    """Every folder the agent's commands may write: its start folder, the row's writable roots
+    and, for Codex in workspace-write, the temp folders it opens unless the row opts out."""
+    roots = [start, *(Path(r.replace("{workdir}", str(start))).resolve()
+                      for r in entry.permissions.writable_roots)]  # fmt: skip
+    if Path(entry.argv[0]).name == "codex" and entry.permissions.sandbox == "workspace-write":
+        tmpdir = os.environ.get("TMPDIR")
+        if CODEX_TMP_OPT_OUTS["/tmp"] not in entry.argv:
+            roots.append(Path("/tmp").resolve())
+        if tmpdir and CODEX_TMP_OPT_OUTS["TMPDIR"] not in entry.argv:
+            roots.append(Path(tmpdir).resolve())
+    return roots
+
+
 def run_review(
     *,
     workdir: Path | str,
@@ -288,6 +313,7 @@ def run_review(
     idle_sec: int | None = 600,
     slice_paths: Sequence[str] | None = None,
     task_text: str | None = None,
+    prior_review: Path | str | None = None,
     context_command: str | None = None,
     store: Path | str | None = None,
     arm: str | None = None,
@@ -307,6 +333,7 @@ def run_review(
     cli_version, when given, is the version the rollout must report. A run in which neither the
     main agent nor any sub-agent writes anything for idle_sec seconds is stopped. slice_paths
     limits every reviewer to those files; task_text says what the change is meant to do;
+    prior_review names a file of this pull request's earlier findings and how each ended;
     context_command names the search command of a context store. Each is passed on as given.
     store is a built context store: the run then gets a `ctx` wrapper in its run folder as its
     search command and records the store's arm and hash; env_file is read by that wrapper for
@@ -377,6 +404,12 @@ def run_review(
     out_dir.mkdir(parents=True, exist_ok=True)
     run_id = run_id or f"{datetime.now(UTC):%Y%m%dT%H%M%SZ}-{secrets.token_hex(3)}"
     run_dir = Path(runs_dir or DEFAULT_RUNS).resolve() / run_id
+    # The agent may write its start folder, which holds the repository; the trees it is judged on
+    # and the wrappers live in the run folder, so that must sit outside (pass runs_dir).
+    if writable := [r for r in _agent_writable(entry, start) if run_dir.is_relative_to(r)]:
+        raise ValueError(
+            f"the run folder {run_dir} is inside {writable[0]}, which the agent can write"
+        )
     home = run_dir / "home"
     home.mkdir(parents=True)
     codex_home = Path(codex_home or os.environ.get("CODEX_HOME") or Path.home() / ".codex")
@@ -395,7 +428,9 @@ def run_review(
         context_command = _context_command()
     elif store is not None:
         context_command = None
-    extras = prompt_extras(slice_paths, task_text, context_command, row.method if row else None)
+    prior = str(Path(prior_review).resolve()) if prior_review else None
+    extras = prompt_extras(slice_paths, task_text, context_command, row.method if row else None,
+                           prior_review=prior)  # fmt: skip
 
     ctx = {
         "workdir": str(start), "out_dir": str(out_dir), "model": model, "effort": effort,

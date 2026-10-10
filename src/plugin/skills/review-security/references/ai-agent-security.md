@@ -122,13 +122,14 @@ class SecureToolCaller:
     ALLOWED_TOOLS = {"search", "calculate", "read_file"}
     DANGEROUS_TOOLS = {"write_file", "send_email", "delete"}
 
-    def call_tool(self, tool_name: str, args: dict, user_approved: bool = False):
+    def call_tool(self, principal: str, tool_name: str, args: dict):
         # 1. Validate tool exists in allowlist
         if tool_name not in self.ALLOWED_TOOLS | self.DANGEROUS_TOOLS:
             raise ToolNotAllowed(f"Unknown tool: {tool_name}")
 
-        # 2. Dangerous tools require human approval
-        if tool_name in self.DANGEROUS_TOOLS and not user_approved:
+        # 2. Dangerous tools require a human approval recorded server-side for this principal,
+        #    these exact arguments and an unexpired window; never a flag the caller passes in
+        if tool_name in self.DANGEROUS_TOOLS and not self.approvals.valid(principal, tool_name, args):
             return PendingApproval(tool_name, args)
 
         # 3. Validate arguments against schema

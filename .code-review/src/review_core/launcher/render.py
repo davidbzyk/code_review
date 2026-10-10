@@ -36,11 +36,10 @@ def prompt_extras(
     task_text: str | None,
     context_command: str | None,
     method: str | None = None,
+    prior_review: str | None = None,
 ) -> list[str]:
-    """The optional prompt lines, in the words the orchestrator skill passes on to reviewers.
-
-    `method` is the arm's own way of gathering context (the `method` of its provider row).
-    """
+    """The optional prompt lines the orchestrator passes on to reviewers; `method` is the arm's
+    way of gathering context, `prior_review` the file of this pull request's earlier findings."""
     lines = []
     if slice_paths is not None:
         paths = [safe_relpath(p) for p in slice_paths]
@@ -53,6 +52,18 @@ def prompt_extras(
         lines.append("How to gather context: " + " ".join(method.split()))
     if context_command and context_command.strip():
         lines.append("Context search command: " + " ".join(context_command.split()))
+    if prior_review:
+        if "\n" in prior_review:
+            raise ValueError("the earlier review's path must be one line")
+        lines.append(
+            f"Earlier review of this pull request: read {prior_review} to its last line after"
+            " your skill file (if output is truncated, read the missing lines by line range)."
+            " A finding it marks resolved or answered is settled, and a reply there explains"
+            " why: report it again only if the lines it names changed since, and say what"
+            " changed. An outdated one sat on lines that have since changed: report it only if"
+            " the problem is still there. Do not report an open one again in other words."
+            " Report any new problem as usual."
+        )
     return lines
 
 

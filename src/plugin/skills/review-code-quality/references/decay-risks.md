@@ -27,7 +27,7 @@ Cognitive load beyond working memory causes mistakes, avoidance, and blocks the 
 
 ### Severity Guide
 
-- 🔴 Critical: function > 50 lines, nesting > 5, or virtually no meaningful names
+- 🔴 Critical: a function over 50 lines, nesting over 5 or no meaningful names, and only with a shown severe consequence (a bug it hides, a change it blocks); size alone is a Warning
 - 🟡 Warning: function 20–50 lines, nesting 4–5, some unclear names
 - 🟢 Suggestion: minor naming issues, 1–2 magic numbers, isolated train-wreck chains
 
@@ -67,7 +67,7 @@ Each change ripples to unrelated modules, slowing velocity and multiplying regre
 
 ### Severity Guide
 
-- 🔴 Critical: one change touches > 5 files, or there is a structural dependency inversion (domain depends on infrastructure)
+- 🔴 Critical: a structural dependency inversion (domain depends on infrastructure) with a shown severe consequence; touching more than 5 files alone is a Warning
 - 🟡 Warning: one change touches 3–5 files, mild coupling between modules
 - 🟢 Suggestion: minor coupling, easily isolatable
 

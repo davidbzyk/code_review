@@ -57,12 +57,27 @@ runner=${CR_RUNNER:-$runner}
 registry=()
 if [ -n "${CR_REGISTRY:-}" ]; then registry=(--registry "$CR_REGISTRY"); fi
 
+# The earlier threads, read with the token, for the reviewers (outside the checkout, so a PR cannot
+# plant one). CR_PRIOR_REVIEW names a prepared file instead (tests); a dry run calls no GitHub API.
+prior_file="$work/prior-review.md"
+rm -f "$prior_file"
+if [ -n "${CR_PRIOR_REVIEW:-}" ]; then
+  cp "$CR_PRIOR_REVIEW" "$prior_file"
+elif [ -z "${CR_DRY_RUN:-}" ]; then
+  history=("${py[@]}" -m review_core.ci.history --repo "$CR_REPO" --pr "$CR_PR" --out "$prior_file"
+           --repo-dir "$repo" --head "$CR_HEAD")
+  if [ -n "${CR_BOT:-}" ]; then history+=(--bot "$CR_BOT"); fi
+  (cd "$here" && "${history[@]}") || true
+fi
+prior=()
+if [ -s "$prior_file" ]; then prior=(--prior-review "$prior_file"); fi
+
 # The review never sees the GitHub token; only the post below gets it.
 status=0
 (cd "$here" && env -u GITHUB_TOKEN "${py[@]}" -m review_core.cli review --repo "$repo" --base "$base" \
   --head "$CR_HEAD" --runner "$runner" --model "${CR_MODEL:-gpt-6-luna}" \
   --effort "${CR_EFFORT:-high}" --out "$out" --runs "$work/runs" "${registry[@]}" \
-  "${paths[@]}") || status=$?
+  ${prior[@]+"${prior[@]}"} "${paths[@]}") || status=$?
 
 # A failed run still has a review.json; post it so the pull request shows the failure.
 # The agents could read the login; the poster refuses to post any of its values.
