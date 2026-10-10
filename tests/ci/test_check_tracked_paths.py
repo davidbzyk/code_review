@@ -62,3 +62,15 @@ def test_without_a_private_root_only_paths_are_checked(tmp_path):
     r = repo(tmp_path)
     stage(r, "docs/notes.md", f"An example: {SECRET}.\n")
     assert guard.check(r, private=None) == []
+
+
+def test_public_voiceover_tasks_may_ship_their_case_material_but_ge_tasks_never():
+    import tomllib
+    from pathlib import Path
+
+    toml = Path(__file__).resolve().parents[2] / "ci" / "tracked-paths.toml"
+    rules = tomllib.loads(toml.read_text())
+    assert guard.refused_path("evals/tasks/vo-t01/environment/repo.tar.gz", rules) is None
+    assert guard.refused_path("evals/tasks/ge-x766/environment/repo.tar.gz", rules)
+    assert guard.refused_path("evals/tasks/ge-x766/task.toml", rules)
+    assert guard.refused_path("anything/else/repo.tar.gz", rules)
