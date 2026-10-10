@@ -87,7 +87,7 @@ STRIDE categorizes threats into six types. For each, ask: "Can an attacker do th
 
 | Category | Threat | Severity | Mitigation |
 |----------|--------|----------|------------|
-| **Spoofing** | Prompt injection makes agent impersonate admin | CRITICAL | Input sanitization, system prompt hardening |
+| **Spoofing** | Prompt injection makes agent impersonate admin | CRITICAL | Server-side authorization and least-privilege tools; human approval for privileged actions (prompt hardening is not a boundary) |
 | **Tampering** | Agent modifies files/DB beyond intended scope | CRITICAL | Read-only by default, allowlist of writable paths |
 | **Repudiation** | Cannot trace which agent action caused damage | HIGH | Log every tool call with full context |
 | **Info Disclosure** | Agent leaks secrets from context/env to output | CRITICAL | Strip secrets before context injection, output filtering |
