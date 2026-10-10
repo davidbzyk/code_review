@@ -20,12 +20,24 @@ base=$(git -C "$repo" merge-base "$CR_BASE" "$CR_HEAD")
 
 # NUL-separated, so a name git would quote (non-ASCII, spaces) arrives as itself; deleted files
 # count; --path=VALUE keeps a name that looks like an option a value.
-paths=()
+changed=()
 while IFS= read -r -d '' path; do
-  case "$path" in .code-review/*|.code-review-out/*|"") ;; *) paths+=("--path=$path") ;; esac
+  case "$path" in .code-review/*|.code-review-out/*|"") ;; *) changed+=("$path") ;; esac
 done < <(git -C "$repo" diff --no-ext-diff -z --name-only --diff-filter=ACMRD "$base" "$CR_HEAD")
+# Files .gitattributes marks linguist-generated or linguist-vendored (snapshots, generated output)
+# are skipped, as GitHub collapses them. The marks are read from the base, so a change cannot
+# mark itself unreviewed. check-attr answers two attributes per path, in order.
+paths=()
+if [ ${#changed[@]} -gt 0 ]; then
+  while IFS= read -r -d '' path && IFS= read -r -d '' _ && IFS= read -r -d '' generated \
+        && IFS= read -r -d '' _ && IFS= read -r -d '' _ && IFS= read -r -d '' vendored; do
+    case "$generated $vendored" in set\ *|true\ *|*\ set|*\ true) ;; *) paths+=("--path=$path") ;; esac
+  done < <(printf '%s\0' "${changed[@]}" \
+           | git -C "$repo" check-attr -z --stdin --source "$base" linguist-generated \
+             linguist-vendored)
+fi
 if [ ${#paths[@]} -eq 0 ]; then
-  echo "code-review: no changed files outside .code-review/, nothing to review"
+  echo "code-review: no changed files outside .code-review/ and the generated or vendored ones, nothing to review"
   exit 0
 fi
 
