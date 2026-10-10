@@ -36,6 +36,9 @@ def _parser() -> argparse.ArgumentParser:
         "--env-file", default=None, help="file the search command reads the key from"
     )
     review.add_argument("--idle-sec", type=int, default=600, help="stop a run silent this long")
+    review.add_argument(
+        "--prior-review", default=None, help="file of this pull request's earlier findings"
+    )
     return parser
 
 
@@ -48,6 +51,7 @@ def main(argv: list[str] | None = None) -> int:
         out_dir=args.out, runs_dir=args.runs, registry_path=args.registry,
         slice_paths=args.path, task_text=args.task_text, context_command=args.context_command,
         case=args.case, idle_sec=args.idle_sec, store=args.store, env_file=args.env_file,
+        prior_review=args.prior_review,
     )  # fmt: skip
     for row in result.document["envelope"]["reviewers"]:
         print(f"{row['reviewer']}: {row['outcome']} ({row['findings_count']} findings)")

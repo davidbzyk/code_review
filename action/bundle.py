@@ -13,14 +13,19 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import re
 import shutil
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-# The context command too: the review command's --store runs it before any reviewer starts.
-ENTRIES = ("review_core.cli", "review_core.ci.github", "review_core.context.ctx")
+# Every module the wrapper runs (`-m review_core...` in run-review.sh), so a new step needs no edit
+# here, plus the context command, which the review command's --store runs before any reviewer.
+ENTRIES = tuple(sorted(
+    set(re.findall(r"-m (review_core[\w.]+)", (ROOT / "action" / "run-review.sh").read_text()))
+    | {"review_core.context.ctx"}
+))  # fmt: skip
 DEST = ".code-review"
 WORKFLOW = Path(".github") / "workflows" / "code-review.yml"
 SKIP_NAMES = {"__pycache__", ".DS_Store"}

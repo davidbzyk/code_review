@@ -294,3 +294,35 @@ def test_the_workflow_reviews_the_pr_head_skips_dependabot_by_author_and_reruns_
     assert "github.actor" not in text
     assert "types: [opened, synchronize, reopened, ready_for_review, edited]" in text
     assert "(github.event.action != 'edited' || github.event.changes.base)" in text
+
+
+def test_run_review_sh_hands_the_reviewers_the_earlier_review_and_reads_it_with_the_token(
+    workdir, write_registry, tmp_path
+):
+    dest = bundle.install(workdir)
+    earlier = tmp_path / "earlier.md"
+    earlier.write_text("# Earlier review of this pull request\n")
+    env = {
+        "PATH": os.environ["PATH"], "HOME": str(tmp_path), "RUNNER_TEMP": str(tmp_path / "rt"),
+        "GITHUB_WORKSPACE": str(workdir), "CR_BASE": "base", "CR_HEAD": "head",
+        "CR_REPO": "o/r", "CR_PR": "1", "CR_DRY_RUN": str(tmp_path / "post"),
+        "CR_RUNNER": "fake", "CR_REGISTRY": str(write_registry()), "CODEX_AUTH_JSON_B64": "e30=",
+        "CR_PRIOR_REVIEW": str(earlier),
+    }  # fmt: skip
+    done = subprocess.run(["bash", str(dest / "run-review.sh")], env=env, capture_output=True,
+                          text=True)  # fmt: skip
+    assert done.returncode == 0, done.stderr
+    prompt = (workdir / ".code-review-out" / "prompt.txt").read_text()
+    assert "Earlier review of this pull request: read " in prompt
+    script = (dest / "run-review.sh").read_text()
+    # The history is read while the token is there; the review after it never gets the token.
+    assert script.index("review_core.ci.history") < script.index("env -u GITHUB_TOKEN")
+
+
+def test_the_install_carries_every_module_the_wrapper_runs(workdir):
+    dest = bundle.install(workdir)
+    script = (dest / "run-review.sh").read_text()
+    import re
+
+    for module in sorted(set(re.findall(r"-m (review_core[\w.]+)", script))):
+        assert (dest / "src" / (module.replace(".", "/") + ".py")).is_file(), module

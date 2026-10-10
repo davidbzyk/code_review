@@ -177,21 +177,29 @@ def _ordered(findings) -> list[Finding]:
     return sorted(findings, key=lambda f: (SEVERITIES.index(f.severity), f.file, f.line_start))
 
 
-def _counts(findings, head: str) -> str:
-    """The one count line: total in bold, then a chip per severity."""
+def _counts(findings, head: str, still_open: int | None = 0) -> str:
+    """The one count line: total in bold, then a chip per severity. `still_open` None means the
+    earlier threads could not be read, so a clean line is never claimed."""
     if not findings:
-        return f"No issues found on `{head[:7]}`."
+        clean = still_open == 0
+        return f"No issues found on `{head[:7]}`." if clean else f"No new issues on `{head[:7]}`."
     noun = "finding" if len(findings) == 1 else "findings"
     chips = [f"{sum(f.severity == s for f in findings)} {s}" for s in SEVERITIES
              if any(f.severity == s for f in findings)]  # fmt: skip
     return " · ".join([f"**{len(findings)} {noun}** on `{head[:7]}`", *chips])
 
 
-def _outcome(run, head: str) -> list[str]:
-    """What the run found, never read as a clean review when reviewers did not finish."""
+def _outcome(run, head: str, still_open: int | None = 0) -> list[str]:
+    """What the run found, never read as a clean review when reviewers did not finish or
+    earlier findings are still open (the reviewers are told not to repeat those)."""
     if run.envelope.status == "failed":
         return [f"**The review did not complete** on `{head[:7]}`, so no code was checked."]
-    lines = [_counts(_published(run), head)]
+    lines = [_counts(_published(run), head, still_open)]
+    if still_open is None:
+        lines += ["", "Earlier findings could not be read, so some may still be open."]
+    elif still_open:
+        noun = "finding is" if still_open == 1 else "findings are"
+        lines += ["", f"{still_open} earlier {noun} still open; see the earlier reviews above."]
     unfinished = [r.reviewer for r in run.envelope.reviewers if r.outcome not in SUCCESS_OUTCOMES]
     if unfinished:
         lines += ["", f"Not every reviewer finished: {', '.join(unfinished)}."]
@@ -234,7 +242,8 @@ def posted_fingerprints(bodies: list[str]) -> set[str]:
 
 
 def review_payload(doc: dict, diff: str, *, head: str, repo: str, title: str = TITLE,
-                   posted: set[str] = frozenset(), base: str | None = None) -> dict:  # fmt: skip
+                   posted: set[str] = frozenset(), base: str | None = None,
+                   still_open: int | None = 0) -> dict:  # fmt: skip
     """The body of POST /repos/{repo}/pulls/{n}/reviews for one run.
 
     A finding whose fingerprint is in `posted` is already on the pull request and is left out.
@@ -251,7 +260,7 @@ def review_payload(doc: dict, diff: str, *, head: str, repo: str, title: str = T
             outside.append(finding)
         else:
             comments.append({**place, "body": render_inline(finding, head)})
-    body = [f"### {_title(title)}", "", *_outcome(run, head)]
+    body = [f"### {_title(title)}", "", *_outcome(run, head, still_open)]
     if repeated:
         body += ["", f"{repeated} already posted on an earlier commit; not repeated here."]
     elsewhere = len(run.findings) - len(_published(run))
@@ -283,10 +292,11 @@ _SENTENCE = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9`])")
 
 
 def render_summary(doc: dict, *, head: str, repo: str, change_summary: str | None,
-                   title: str = TITLE, base: str | None = None) -> str:  # fmt: skip
+                   title: str = TITLE, base: str | None = None,
+                   still_open: int | None = 0) -> str:  # fmt: skip
     """The summary issue comment: the outcome, a table of findings, the change as bullets."""
     run = load_run_envelope(doc)
-    lines = [SUMMARY_MARKER, f"## {_title(title)}", "", *_outcome(run, head)]
+    lines = [SUMMARY_MARKER, f"## {_title(title)}", "", *_outcome(run, head, still_open)]
     tail = []
     sentences = [s for para in _summary(change_summary) for s in _SENTENCE.split(para) if s]
     if sentences:
@@ -405,25 +415,35 @@ def _pages(request: Callable, url: str, token: str, limit: int = 50) -> list[dic
 def publish(doc: dict, diff: str, *, head: str, repo: str, pr: int, change_summary: str | None,
             token: str, dry_run: Path | None = None, request: Callable = _request,
             api: str = API, secrets: list[str] = (), title: str = TITLE,
-            bot: str = BOT, base: str | None = None) -> None:  # fmt: skip
+            bot: str = BOT, base: str | None = None,
+            repo_dir: Path | None = None) -> None:  # fmt: skip
     """Post the review and create or edit the summary comment; with dry_run, write them instead.
 
     Raises CredentialInOutput, before any call, when the text holds one of `secrets`.
     """
     _check([change_summary or "", *_strings(doc["findings"])], list(secrets))  # before any call
-    posted = set()
+    posted, still_open = set(), 0
     if dry_run is None:
         url = f"{api}/repos/{repo}/pulls/{pr}/comments"
         # Inline comments and review bodies (off-diff findings) both carry markers; only the
         # bot's own count, so a marker pasted by anyone else suppresses nothing.
-        found = [*_pages(request, url, token),
-                 *_pages(request, f"{api}/repos/{repo}/pulls/{pr}/reviews", token)]  # fmt: skip
+        comments = _pages(request, url, token)
+        reviews = _pages(request, f"{api}/repos/{repo}/pulls/{pr}/reviews", token)
+        found = [*comments, *reviews]
         ours = [c for c in found if (c.get("user") or {}).get("login") == bot]
         posted = posted_fingerprints([c.get("body", "") for c in ours])
+        from review_core.ci.history import body_threads, changed_since, open_count  # imports us
+
+        # Findings left in a review body have no thread; they count as open until their file
+        # changes since the commit they were raised on (see `changed_since`).
+        still_open = open_count(request, repo, pr, token, bot, api)
+        if still_open is not None:
+            changed = changed_since(repo_dir, head) if repo_dir else None
+            still_open += sum(t.state == "open" for t in body_threads(reviews, bot, changed))
     payload = review_payload(doc, diff, head=head, repo=repo, title=title, posted=posted,
-                             base=base)  # fmt: skip
+                             base=base, still_open=still_open)  # fmt: skip
     summary = render_summary(doc, head=head, repo=repo, change_summary=change_summary,
-                             title=title, base=base)  # fmt: skip
+                             title=title, base=base, still_open=still_open)  # fmt: skip
     _check([*_strings(payload), summary, change_summary or "", *_strings(doc["findings"])],
            list(secrets))  # fmt: skip
     if dry_run is not None:
@@ -511,7 +531,7 @@ def main(argv: list[str] | None = None) -> int:
         publish(doc, pr_diff(args.repo_dir, args.base, args.head), head=args.head,
                 repo=args.repo, pr=args.pr, change_summary=summary, token=token,
                 dry_run=args.dry_run, secrets=secrets, title=args.title,
-                bot=args.bot, base=args.base)  # fmt: skip
+                bot=args.bot, base=args.base, repo_dir=args.repo_dir)  # fmt: skip
     except CredentialInOutput as exc:
         print(f"code-review: {exc}; nothing was posted", file=sys.stderr)
         return 3
