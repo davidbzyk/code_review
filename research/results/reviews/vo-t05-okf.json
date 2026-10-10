@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 3
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "language",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 0,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/src/google_drive.rs",
+      "line_start": 284,
+      "line_end": 305,
+      "side": "new",
+      "quote": "    // Update .meta.json with drive URL\n    let meta_path = Path::new(&file_path).with_extension(\"meta.json\");\n    let timestamp = crate::pipeline::chrono_timestamp();\n    if meta_path.exists() {\n        if let Ok(content) = std::fs::read_to_string(&meta_path) {\n            if let Ok(mut meta) = serde_json::from_str::<serde_json::Value>(&content) {\n                meta[\"driveUrl\"] = serde_json::Value::String(share_link.clone());\n                meta[\"uploadedAt\"] = serde_json::json!(timestamp.parse::<u64>().unwrap_or(0));\n                if let Ok(json) = serde_json::to_string_pretty(&meta) {\n                    std::fs::write(&meta_path, json).ok();\n                    log::info!(\"[drive] Updated meta.json with drive URL\");\n                }\n            }\n        }\n    } else {\n        // No existing meta \u2014 create one with just drive info\n        let meta = serde_json::json!({\n            \"driveUrl\": share_link,\n            \"uploadedAt\": timestamp.parse::<u64>().unwrap_or(0),\n        });\n        if let Ok(json) = serde_json::to_string_pretty(&meta) {\n            std::fs::write(&meta_path, json).ok();",
+      "title": "Drive metadata update has no tests",
+      "description": "The upload path now has separate branches to merge Drive URL and upload time into existing metadata or create a sidecar when none exists, but google_drive.rs has no tests for either branch. The pipeline metadata tests do not cover this code. A regression could lose the Drive link or overwrite existing voice fields while the upload itself still succeeds, leaving the Library unable to show the uploaded state.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "d05c3b74b0b4f4eef7903f9c4ea83262c6ddf764c789efd6f5a6c372487e8782",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/library.rs",
+      "line_start": 49,
+      "line_end": 50,
+      "side": "new",
+      "quote": "/// Scan the output directory for recordings and return metadata for each.\n/// Scan a directory for .mp4 recordings and return metadata.",
+      "title": "Remove the repeated scan documentation",
+      "description": "These adjacent comments describe the same responsibility in different words, so the second line adds no constraint or rationale and creates needless documentation to maintain. Keep one description or remove both if the function name is sufficient.",
+      "severity": "P3",
+      "confidence": 100,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "1d6ba91cdfb81908d167e3a6d5a6f5ca0c7a40552887d5de736ddeaab34be8de",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/library.rs",
+      "line_start": 121,
+      "line_end": 124,
+      "side": "new",
+      "quote": "fn resolve_output_dir(configured: &str) -> PathBuf {\n    let configured_path = PathBuf::from(configured);\n    if configured_path.exists() {\n        return configured_path;",
+      "title": "Library and pipeline resolve different output directories",
+      "description": "This new resolver duplicates the pipeline's output-directory decision but treats an existing configured path as usable without attempting to create or write to it. The pipeline falls back when create_dir_all fails, so with an existing but unwritable configured directory recordings are saved under the fallback while the Library scans the configured directory and appears empty. Move output-directory resolution to a shared helper that both commands use, including the pipeline's create failure behavior.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "architecture",
+      "reviewer": "architecture",
+      "scope": "in_diff",
+      "fingerprint": "c4d6d4378112a65ce021409bb7cc9c351fd323e3d829b6f13f4059b78ec8fba5",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/library.rs",
+      "line_start": 196,
+      "line_end": 211,
+      "side": "new",
+      "quote": "    // Delete the MP4\n    std::fs::remove_file(&path)\n        .map_err(|e| format!(\"Failed to delete recording: {e}\"))?;\n\n    // Delete companion files (ignore errors \u2014 they may not exist)\n    let meta_path = path.with_extension(\"meta.json\");\n    std::fs::remove_file(&meta_path).ok();\n\n    let transcript_path = path.with_extension(\"txt\");\n    std::fs::remove_file(&transcript_path).ok();\n\n    // Delete cached thumbnail\n    let thumb_dir = output_dir.join(\".thumbnails\");\n    let stem = path.file_stem().unwrap_or_default().to_string_lossy();\n    let thumb_path = thumb_dir.join(format!(\"{stem}.jpg\"));\n    std::fs::remove_file(&thumb_path).ok();",
+      "title": "Recording deletion and sidecar cleanup are untested",
+      "description": "The new delete command removes the MP4 plus its metadata, transcript, and cached thumbnail, but the added tests only cover path validation and scanning; none exercise this command or its filesystem effects. A regression could leave stale companion files or report success/failure incorrectly without any test detecting it. Add a temporary-directory test that verifies all associated files are removed and that an invalid/outside path leaves them untouched.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "780ebf2efe6ecffeedeeac377c5ab597483b6ba219b95060d16c63b04c7cd1e7",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/RecordingCard.svelte",
+      "line_start": 41,
+      "line_end": 41,
+      "side": "new",
+      "quote": "\t\t\tconst bytes = await tauriInvoke<number[]>('read_file_bytes', { path: thumbPath });",
+      "title": "Thumbnails fail when recordings use a custom output directory",
+      "description": "If a user sets `output_dir` to a location outside the temp, Videos, and `~/VoiceOver` directories, the pipeline and `generate_thumbnail` can write recordings and thumbnails there, but this `read_file_bytes` call is rejected by the existing command's path allowlist. The catch below leaves each card on its \ud83c\udfac placeholder, so thumbnails never display for recordings in otherwise supported custom locations.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "8d45e43080cfbdad73edad169488ed547f87779cc43e5b014ea0d5a14bdc49d3",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/RecordingCard.svelte",
+      "line_start": 43,
+      "line_end": 43,
+      "side": "new",
+      "quote": "\t\t\tthumbnailUrl = URL.createObjectURL(blob);",
+      "title": "Revoke thumbnail object URLs when cards unmount",
+      "description": "Each visible recording card creates a blob URL for its thumbnail, but the onMount cleanup only disconnects the observer and never revokes that URL. Removing cards after deletion or leaving the Library leaves their blobs retained by the browser for the app session; a late thumbnail response can also allocate a URL after the card has unmounted. Revoke the URL during teardown and avoid publishing it after teardown.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "69bb61b3f592a2d66ccd5a5de7e6e4002614b99cea2e7f39c39d7511249f578e",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/library.svelte.ts",
+      "line_start": 28,
+      "line_end": 39,
+      "side": "new",
+      "quote": "\tsorted = $derived.by(() => {\n\t\tconst sorted = [...this.recordings];\n\t\tconst dir = this.sortDir === 'asc' ? 1 : -1;\n\t\tswitch (this.sortBy) {\n\t\t\tcase 'date':\n\t\t\t\tsorted.sort((a, b) => dir * (a.createdAt - b.createdAt));\n\t\t\t\tbreak;\n\t\t\tcase 'size':\n\t\t\t\tsorted.sort((a, b) => dir * (a.sizeBytes - b.sizeBytes));\n\t\t\t\tbreak;\n\t\t\tcase 'name':\n\t\t\t\tsorted.sort((a, b) => dir * a.filename.localeCompare(b.filename));",
+      "title": "Library sorting has no regression tests",
+      "description": "The new LibraryState adds three sort modes and ascending/descending direction, but the changed feature adds no frontend tests for these results. The Rust scan test only checks that timestamps are non-increasing; it cannot catch a broken UI sort mode or direction toggle, so recordings could appear in the wrong order while the Library still renders normally.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "3fa116041d619f31b516e30a17c5b62e3fbd04240e086cc987972ee935604e25",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/routes/(app)/preview/+page.svelte",
+      "line_start": 38,
+      "line_end": 38,
+      "side": "new",
+      "quote": "\t\t\t\tvideoSrc = URL.createObjectURL(blob);",
+      "title": "Release preview video blob URL on route teardown",
+      "description": "The Tauri preview reads the entire recording into a Blob and registers a blob URL, but this page has no teardown that revokes the URL. Navigating to a new recording or another route drops the component while the browser still retains the recording data through the object URL, so repeated previews can accumulate large video blobs for the lifetime of the app. Track and revoke the URL when the preview unmounts.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "a8b734c650dffb7d7900cd4871df9a7cd9c2526d9c420c002e2094c4123e81b7",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/routes/(app)/settings/+page.svelte",
+      "line_start": 48,
+      "line_end": 51,
+      "side": "new",
+      "quote": "\tasync function setLocalVoice(profileId: string) {\n\t\tappState.config.local_voice_profile_id = profileId;\n\t\tawait appState.saveConfig();\n\t}",
+      "title": "Remove unused duplicate local voice setter",
+      "description": "This function has no callers anywhere in the project, and its body duplicates the used `setDefaultLocalVoice` immediately below. Keeping both leaves dead code and makes it unclear which setter owns local voice selection; delete this unused duplicate.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "e7eed5b22686c469146947c2690b66333e40bad56c3e3a9250347f35f7eb9a98",
+      "also_raised_by": []
+    }
+  ]
+}

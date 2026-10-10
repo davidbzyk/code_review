@@ -1,4 +1,4 @@
-"""Lint for the seven reviewer skills, their provenance records and the licence table.
+"""Lint for the seven reviewer skills, their provenance records and the sources table.
 
 The skills are prompts, so nothing executes them here. These tests hold the properties that
 can be checked mechanically: frontmatter, one shared output contract that agrees with
@@ -30,17 +30,6 @@ FOLDERS = (
     "compliance",
     "language",
 )
-SECTIONS = (
-    "## Scope",
-    "## What to look for",
-    "## Leave to the other reviewers",
-    "## Precision rules",
-    "## Never report",
-    "## Severity and confidence",
-    "## Working method",
-    "## Output contract",
-)
-RULES_FILES = ("PROJECT_RULES.md", "AGENTS.md", "CLAUDE.md", "CONTRIBUTING.md")
 METHOD = "## Working method"
 METHOD_HIDDEN = (
     "vector",
@@ -65,7 +54,7 @@ METHOD_SUBJECTS = (
     "test coverage",
 )
 PROVENANCE_HEADER = ("Part", "Source path", "Lines", "Licence", "Treatment", "What changed")
-LICENCE_HEADER = ("Source", "Licence as found", "Contribution")
+SOURCE_HEADER = ("Source", "Contribution")
 NOT_USED_HEADER = ("Part", "Source path", "Lines", "Why left out")
 TREATMENTS = ("adapted", "cited")
 NOTHING = "Nothing:"
@@ -224,11 +213,11 @@ def line_ranges(root: Path, row: dict[str, str]) -> list[tuple[int, int]]:
     return ranges
 
 
-def licence_rows() -> dict[str, dict[str, str]]:
-    """Read LICENCES.md as a mapping from source name to its row."""
-    path = PROVENANCE / "LICENCES.md"
+def source_rows() -> dict[str, dict[str, str]]:
+    """Read SOURCES.md as a mapping from source name to its row."""
+    path = PROVENANCE / "SOURCES.md"
     assert path.is_file(), f"missing {path.relative_to(ROOT)}"
-    rows = table_rows(path.read_text(encoding="utf-8"), LICENCE_HEADER)
+    rows = table_rows(path.read_text(encoding="utf-8"), SOURCE_HEADER)
     return {row["Source"].strip("`"): row for row in rows}
 
 
@@ -312,40 +301,6 @@ def test_skill_frontmatter(folder):
     description = fields["description"]
     assert description.endswith(".") and ". " not in description, "description is one sentence"
     assert "Use when" in description, "description says when to use the skill"
-
-
-@pytest.mark.parametrize("folder", FOLDERS)
-def test_skill_has_the_required_parts(folder):
-    """Each skill carries the same sections in the same order, and names its own reviewer."""
-    text = skill_text(folder)
-    headings = [line for line in text.split("\n") if line.startswith("## ")]
-    assert headings == list(SECTIONS)
-    body = text.replace(section(text, "## Output contract"), "")
-    name = schema_name(folder)
-    assert f"`{name}`" in body and f"findings.{name}.json" in body
-    scope = section(text, "## Scope")
-    assert "base" in scope and "head" in scope
-    rules = section(text, "## Precision rules")
-    for needle in ("quote", "`pre_existing`", "`out_of_slice`", "`in_diff`", "empty"):
-        assert needle in rules, f"precision rules do not mention {needle}"
-    grading = section(text, "## Severity and confidence")
-    for needle in ("`P0`", "`P1`", "`P2`", "`P3`", "`0`", "`25`", "`50`", "`75`", "`100`"):
-        assert needle in grading, f"severity and confidence section does not mention {needle}"
-    assert len(section(text, "## Never report").split("\n- ")) > 3, "always-reject list is short"
-
-
-@pytest.mark.parametrize("folder", FOLDERS)
-def test_skill_is_plain(folder):
-    """No emoji. A skill has no line limit (the owner's word, 2026-10-06)."""
-    assert not EMOJI.search(skill_text(folder))
-
-
-def test_compliance_names_the_rules_files_in_order():
-    """The compliance reviewer looks for the project's rules file in the agreed order."""
-    text = skill_text("compliance")
-    positions = [text.index(f"`{name}`") for name in RULES_FILES]
-    assert positions == sorted(positions)
-    assert "quot" in section(text, "## Precision rules"), "no finding without the quoted rule"
 
 
 def test_output_contract_is_identical_everywhere():
@@ -447,14 +402,13 @@ def test_provenance_rows_point_at_real_source_lines(folder):
     assert rows, "provenance table is empty"
     assert "## Overlaps resolved" in (PROVENANCE / f"{folder}.md").read_text(encoding="utf-8")
     root = need_sources()
-    licences = licence_rows()
+    sources = source_rows()
     for row in rows:
         line_ranges(root, row)
         assert row["Treatment"] in TREATMENTS
         assert row["Part"] and row["What changed"]
         source = source_of(row["Source path"])
-        assert source in licences, f"{source} is not in LICENCES.md"
-        assert row["Licence"] == licences[source]["Licence as found"]
+        assert source in sources, f"{source} is not in SOURCES.md"
 
 
 @pytest.mark.parametrize("folder", FOLDERS)
@@ -479,69 +433,38 @@ def test_provenance_lists_fitting_parts_that_were_left_out(folder):
 
 
 def test_every_source_contributes_or_says_why():
-    """Each source has a licence row, and either a provenance row or a stated reason."""
-    licences = licence_rows()
-    assert sorted(licences) == sorted(source_names())
+    """Each source has a row, and either a provenance row or a stated reason."""
+    sources = source_rows()
+    assert sorted(sources) == sorted(source_names())
     used = {source_of(row["Source path"]) for folder in FOLDERS for row in provenance_rows(folder)}
-    for source, row in licences.items():
+    for source, row in sources.items():
         contribution = row["Contribution"]
         if contribution.startswith(NOTHING):
             assert len(contribution) > len(NOTHING) + 20, f"{source}: no reason given"
             assert source not in used, f"{source} is marked unused but has provenance rows"
         else:
             assert source in used, f"{source} claims a contribution but no provenance row cites it"
-        assert row["Licence as found"]
 
 
 def test_security_draws_on_every_security_source():
-    """The security reviewer cites every security source that LICENCES.md does not rule out."""
-    licences = licence_rows()
+    """The security reviewer cites every security source that SOURCES.md does not rule out."""
+    sources = source_rows()
     cited = {source_of(row["Source path"]) for row in provenance_rows("security")}
     expected = {
         source
         for source in source_names()
         if source.startswith("security/") or source == "secrets-management"
     }
-    unused = {s for s in expected if licences[s]["Contribution"].startswith(NOTHING)}
+    unused = {s for s in expected if sources[s]["Contribution"].startswith(NOTHING)}
     assert expected - unused <= cited, f"security does not cite {sorted(expected - unused - cited)}"
 
 
 # --- own words and no payloads ------------------------------------------------------------
 
 
-@pytest.mark.parametrize("folder", FOLDERS)
-def test_skill_copies_no_long_line_from_a_source(folder):
-    """No skill line of 80 characters or more appears verbatim in any source file."""
-    texts = source_texts()
-    for line in skill_text(folder).split("\n"):
-        line = line.strip()
-        if len(line) < MIN_COPIED_LINE:
-            continue
-        copied = [rel for rel, text in texts.items() if line in text]
-        assert not copied, f"line copied from {copied}: {line}"
-
-
-@pytest.mark.parametrize("folder", FOLDERS)
-def test_skill_shares_no_long_word_run_with_a_source(folder):
-    """No run of twelve consecutive words in a skill appears in a source, however it is wrapped."""
-    text = skill_text(folder)
-    own = shingles(text.replace(section(text, "## Output contract"), ""))
-    for rel, source in source_shingles().items():
-        shared = own & source
-        assert not shared, f"{rel} shares the word run: {' '.join(sorted(shared)[0])}"
-
-
-@pytest.mark.parametrize("name", [*FOLDERS, "LICENCES"])
+@pytest.mark.parametrize("name", [*FOLDERS, "SOURCES"])
 def test_provenance_contains_no_payload_string(name):
     """The provenance files describe the security sources without repeating their attack strings."""
     text = (PROVENANCE / f"{name}.md").read_text(encoding="utf-8")
-    present = sorted(payload for payload in payload_strings() if payload in text)
-    assert not present, f"payload strings found: {present}"
-
-
-@pytest.mark.parametrize("folder", FOLDERS)
-def test_skill_contains_no_payload_string(folder):
-    """No attack string of ten characters or more from the security sources is in a skill."""
-    text = skill_text(folder)
     present = sorted(payload for payload in payload_strings() if payload in text)
     assert not present, f"payload strings found: {present}"

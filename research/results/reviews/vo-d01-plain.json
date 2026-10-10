@@ -1,0 +1,225 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 3
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 5
+      },
+      {
+        "reviewer": "language",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 5,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/src/commands/recording.rs",
+      "line_start": 29,
+      "line_end": 31,
+      "side": "new",
+      "quote": "pub fn save_recording_chunk(session_id: String, chunk: Vec<u8>, chunk_index: u32) -> Result<String, String> {\n    validate_session_id(&session_id)?;\n    let dir = temp_recording_dir().join(&session_id);",
+      "title": "Session validation and chunk assembly lack regression tests",
+      "description": "The change adds input validation to both recording commands and changes the frontend-to-Rust chunk payload to byte arrays, but there are no test files or test script in the repository. Tests should prove valid generated IDs still save and finalize chunks in order, and empty/path-like IDs are rejected without creating or touching files; otherwise a regression could reopen path traversal or break recordings without a test failing.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "cb47ff6624b416b507d0d3b3869e5f161791bcce595dac9d19f1689a71f36dc5",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/google_drive.rs",
+      "line_start": 77,
+      "line_end": 77,
+      "side": "new",
+      "quote": "                std::thread::sleep(Duration::from_millis(200));",
+      "title": "OAuth timeout polling blocks the async runtime",
+      "description": "PROJECT_RULES.md R-08 says: \u201cBlocking work (process spawning, file I/O on large files, long waits) must not run directly on the async runtime; use async APIs or `spawn_blocking`.\u201d `google_drive_connect` is async, and its new callback-polling loop sleeps synchronously every 200 ms until the callback arrives or the 120-second timeout expires. This occupies a Tokio worker during the wait. Verified with `git show HEAD:src-tauri/src/google_drive.rs`, which shows the sleep inside the callback loop of the async command.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "8d25925031031c31d486e096fecf218016bae02024a848586e76ce5efc5b6a0c",
+      "also_raised_by": [
+        "language"
+      ]
+    },
+    {
+      "file": "src-tauri/src/google_drive.rs",
+      "line_start": 140,
+      "line_end": 147,
+      "side": "new",
+      "quote": "    // Calculate token expiry (Google tokens last 3600s, subtract 60s buffer)\n    let expires_in = token_data[\"expires_in\"].as_u64().unwrap_or(3600);\n    let expires_at = std::time::SystemTime::now()\n        .duration_since(std::time::UNIX_EPOCH)\n        .unwrap_or_default()\n        .as_secs()\n        + expires_in\n        - 60;",
+      "title": "Drive token expiry and refresh flow lack regression tests",
+      "description": "This adds expiry calculation that is then used by the browser upload path to refresh tokens proactively, retry after a 401, and persist the replacement token. The repository has no automated test files or test command, so no test verifies the expiry boundary, the missing-expiry fallback, successful refresh and retry, or refresh failure behavior. A broken timestamp or retry branch can leave Drive uploads failing while the UI reports only an error.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "44c5c7a823da9978d393b0473268bc8e95190880f9326796c7415a55a7ce2f72",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 2,
+      "line_end": 2,
+      "side": "new",
+      "quote": "import { isTauri } from './state.svelte';",
+      "title": "Recorder imports global application state for platform detection",
+      "description": "This makes the recording module depend on the module that owns the global AppState, config loading, and persistence just to detect the runtime. That couples the media-capture layer to unrelated application state and causes importing the recorder to evaluate that state module. Move the shared runtime check to a small environment module and have both recorder and state import it.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "architecture",
+      "reviewer": "architecture",
+      "scope": "in_diff",
+      "fingerprint": "1ab36e8d72aac3806308ec7b9ca0fec8d4790af0cd7b33c5c21df08c8dcb433c",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/state.svelte.ts",
+      "line_start": 5,
+      "line_end": 5,
+      "side": "new",
+      "quote": "export function isTauri(): boolean {",
+      "title": "New public helper has no test in this change",
+      "description": "PROJECT_RULES.md R-16 says: \u201cEvery new public function, command, or component with logic must have a test in the same change.\u201d This change exposes `isTauri` as a public function, but `git diff --name-only HEAD~1 HEAD` lists no test files, so the new public API has no accompanying test. A regression in the environment check would affect each caller that now shares this helper. Verified with `git show HEAD:src/lib/state.svelte.ts` and `git diff --name-only HEAD~1 HEAD`.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "d71b41742c81d92587021ee23ff8cbe857326a4e22b936b6d2df823303535f0b",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/routes/+page.svelte",
+      "line_start": 51,
+      "line_end": 54,
+      "side": "new",
+      "quote": "\t\t\t\t// Listen for widget events (stop / cancel)\n\t\t\t\tconst { listen } = await import('@tauri-apps/api/event');\n\t\t\t\tlisten('recording-stop', () => handleStop());\n\t\t\t\tlisten('recording-cancel', () => handleCancel());",
+      "title": "Widget recording controls change without documentation",
+      "description": "PROJECT_RULES.md R-20 says: \u201cUser-visible behavior changes must update the README or docs in the same change.\u201d This adds home-page behavior in response to the widget's stop and cancel controls, but `git diff --name-only HEAD~1 HEAD` contains no README or docs changes. Users' recording workflow changes without the required documentation update. Verified with `git show HEAD:src/routes/+page.svelte` and `git diff --name-only HEAD~1 HEAD`.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "92eb7c52a8ee34e83b8eddf5223e586034047fc1a8e0b9c8f4dce0ce91de9df5",
+      "also_raised_by": [
+        "code_quality",
+        "correctness",
+        "language",
+        "tests"
+      ]
+    },
+    {
+      "file": "src/routes/preview/+page.svelte",
+      "line_start": 383,
+      "line_end": 388,
+      "side": "new",
+      "quote": "\t\t\t\t// Proactively refresh if token is expired or expiring soon\n\t\t\t\tconst now = Math.floor(Date.now() / 1000);\n\t\t\t\tif (appState.config.google_drive.expires_at > 0 && now >= appState.config.google_drive.expires_at) {\n\t\t\t\t\tlogger.info('drive', 'Token expired, refreshing proactively...');\n\t\t\t\t\ttoken = await refreshDriveToken();\n\t\t\t\t}",
+      "title": "Expired Drive tokens still fail on the desktop upload path",
+      "description": "When a connected desktop user's token expires, `uploadToDrive` takes the `isTauri()` branch and invokes `upload_to_drive` before reaching this refresh check, which only runs in the browser `else` branch. The Rust upload command returns an error for an unauthorized response and does not refresh or retry, so desktop uploads after token expiry fail instead of using the promised refresh behavior.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "98680ac5e54dfc7d33594f40ed361fc5dd6d3c5572e8052a8c3a319837d22284",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/routes/widget/+page.svelte",
+      "line_start": 44,
+      "line_end": 45,
+      "side": "new",
+      "quote": "\t\tconst { invoke } = await import('@tauri-apps/api/core');\n\t\tinvoke('plugin:event|emit', { event: isPaused ? 'recording-pause' : 'recording-resume', payload: null }).catch(() => {});",
+      "title": "Widget calls Tauri IPC directly and suppresses failures",
+      "description": "PROJECT_RULES.md R-03 says: \u201cSvelte components must not call Tauri `invoke` or `fetch` directly; they go through a function in `src/lib/` so the call can be mocked in tests.\u201d This component invokes Tauri directly; the same direct calls also appear in its stop and cancel handlers. R-05 says every awaited IPC/network call must report or rethrow failures and forbids empty catches; this `.catch(() => {})` silently discards pause/resume IPC errors. Verified with `git show HEAD:src/routes/widget/+page.svelte`: the component imports and calls `invoke` in its handlers, with no `src/lib` wrapper.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "97d1f9d00c01303ab1f7f4e68da91c141e274b2897f1dce4b18c08d13c8c4b5f",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/routes/widget/+page.svelte",
+      "line_start": 54,
+      "line_end": 55,
+      "side": "new",
+      "quote": "\t\tawait emit('recording-stop');\n\t\tawait invoke('close_widget_window');",
+      "title": "Stop handler leaves IPC failures unhandled",
+      "description": "PROJECT_RULES.md R-05 says: \u201cEvery `await` on an IPC or network call must sit in a `try/catch` (or `.catch`) that either reports the failure to the user or rethrows.\u201d These awaited IPC calls have no such handling, so a failed stop event or close request becomes an unhandled rejection. The cancel handler repeats the same pattern at lines 63\u201364. Verified with `git show HEAD:src/routes/widget/+page.svelte`; both handlers await IPC calls outside any `try/catch`.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "f4130d7ea3742b414d1be2a7ab14b74aed381961e6363ff43ae397226aceae91",
+      "also_raised_by": []
+    }
+  ]
+}

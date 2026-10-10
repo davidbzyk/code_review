@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "language",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 1,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 98,
+      "line_end": 98,
+      "side": "new",
+      "quote": "\t\tscreenStream = await displayPromise;",
+      "title": "Canceling the system picker leaves the Tauri window minimized",
+      "description": "In Tauri fullscreen or region mode the window is minimized before awaiting the picker. If the user dismisses the picker or permission is denied, this await rejects and jumps to cleanup, skipping the success-only unminimize call; the app stays minimized after the failed capture attempt.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "77f5e3180ec8140f16100c275645e8f86ece1f9358c586506d5cdeb3b9d7f71a",
+      "also_raised_by": [
+        "language"
+      ]
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 134,
+      "line_end": 135,
+      "side": "new",
+      "quote": "\t\t\tawait new Promise((r) => requestAnimationFrame(r));\n\t\t\ttmpCanvas.getContext('2d')!.drawImage(tmpVideo, 0, 0, frameW, frameH);",
+      "title": "Region screenshot can be captured before the first video frame",
+      "description": "A single animation-frame callback after play() does not ensure that the screen track has decoded a frame. On slower capture startup, drawImage can therefore snapshot the video's initial black frame, which is then presented as the selection background. The compositor later waits for loadeddata, but this screenshot path does not, so region selection can start with no visible screen content.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "4b400fc9e8109f6c6f982280058dd6cbcf1c419e349129d43f1227163bc7efb4",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 143,
+      "line_end": 146,
+      "side": "new",
+      "quote": "\t\t\tregionRect = await new Promise<RegionRect>((resolve, reject) => {\n\t\t\t\tregionResolve = resolve;\n\t\t\t\tregionReject = reject;\n\t\t\t});",
+      "title": "Region selection and cropping have no behavioral tests",
+      "description": "The added tests cover only the mode-to-surface mapping and that confirmation/cancellation are harmless when no selection is pending. Nothing exercises the new region flow from drawing and confirming a rectangle through producing the cropped recording, or verifies that cancellation rejects the pending startRecording operation and cleans up. A regression that passes the wrong coordinates to the cropper, never resolves confirmation, or mishandles cancellation would pass the current suite. Add focused tests for the selector's coordinate mapping and the recorder's confirm/cancel behavior, including the resulting crop dimensions/source rectangle.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "c68ea5ed848387ff68774a68cd0f7f40a9e7929495613cd6fad81c0701351e83",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 230,
+      "line_end": 234,
+      "side": "new",
+      "quote": "\t\t\tif (regionRect) {\n\t\t\t\tcompositorCtx.drawImage(screenVideoEl, regionRect.x, regionRect.y, regionRect.width, regionRect.height, 0, 0, w, h);\n\t\t\t} else {\n\t\t\t\tcompositorCtx.drawImage(screenVideoEl, 0, 0, w, h);\n\t\t\t}",
+      "title": "Duplicate crop dispatch in compositor",
+      "description": "The initial synchronous frame and the compositor loop each encode the same region-vs-full-screen draw decision (the latter at lines 343\u2013347). If crop handling changes, these two paths can drift and make the first frame differ from subsequent frames. Move this draw decision into a shared helper and call it from both paths.",
+      "severity": "P3",
+      "confidence": 75,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "333f599f1dc79e01b39177b784716871e51a8d97475d5bd4fd6a6da170e2eee6",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 531,
+      "line_end": 531,
+      "side": "new",
+      "quote": "\t\t\tregionReject();",
+      "title": "Canceling region selection displays an `undefined` error",
+      "description": "When the user presses Cancel or Escape, this rejects the pending selection with no reason. `handleRecord()` catches that rejection and displays `String(err)`, so a normal cancellation leaves the user with an `undefined` error banner instead of returning quietly to the ready state.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "534047b5b57eb2b4cfb832161645a447189f50179cebb0d9bd7fca82d41b0c7a",
+      "also_raised_by": []
+    }
+  ]
+}

@@ -1,0 +1,236 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 4
+      },
+      {
+        "reviewer": "language",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 1,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "scripts/generate-icon.py",
+      "line_start": 3,
+      "line_end": 3,
+      "side": "new",
+      "quote": "from PIL import Image, ImageDraw",
+      "title": "Icon generator requires undeclared Pillow dependency",
+      "description": "The new script imports Pillow, but the repository has no Python dependency manifest or setup instructions for it. Running the icon generator in a clean checkout therefore fails immediately with ModuleNotFoundError, before it can produce the Tauri icons. Declare/install Pillow as part of the script's documented setup or use a dependency-free alternative.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "2b71129e2c8530dc271aaa6a67f5736ac251850b8b1f026d7560244700c730d2",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/commands/recording.rs",
+      "line_start": 53,
+      "line_end": 55,
+      "side": "new",
+      "quote": "    let allowed = requested.starts_with(&temp_dir)\n        || requested.starts_with(&video_dir)\n        || requested.starts_with(home_dir.join(\"VoiceOver\"));",
+      "title": "Test the new file-read path restriction",
+      "description": "PROJECT_RULES.md R-16 requires bug fixes to add a test that fails before the fix. This change adds an allowlist to read_file_bytes, but the changed recording tests cover session IDs and chunk concatenation only; no test verifies that allowed paths remain readable and paths outside these folders are rejected.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "4232f3443a6efdc7a2c27abc3be489f88a385f62560c56f38345aacce91b869f",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/config.rs",
+      "line_start": 133,
+      "line_end": 133,
+      "side": "new",
+      "quote": "    if !config.elevenlabs_api_key.is_empty() || !config.google_drive.access_token.is_empty() {",
+      "title": "Migration skips standalone Drive secrets",
+      "description": "PROJECT_RULES.md R-14 requires that client secrets and OAuth tokens never remain in the plain config file. This migration gate ignores google_drive.client_secret and google_drive.refresh_token, so an existing config containing only either value skips sanitization and rewriting; that credential remains on disk in plaintext.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "0369cb97f57db39a184167280589511600f15a36eacabbb011a4ef482fd46654",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/config.rs",
+      "line_start": 135,
+      "line_end": 135,
+      "side": "new",
+      "quote": "        crate::secrets::save_secrets(&config);",
+      "title": "Config and keychain modules form a dependency cycle",
+      "description": "The config module invokes the secrets module for load/save/sanitization, while the new secrets module takes `super::config::AppConfig` in all three APIs. This couples the keychain adapter to the full JSON config schema and makes the modules depend on each other, so changing either storage boundary requires coordinated changes and neither can be isolated. Have the config boundary extract/apply a small secret-values type while the keychain module accepts/returns that type, leaving a one-way dependency.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "architecture",
+      "reviewer": "architecture",
+      "scope": "in_diff",
+      "fingerprint": "1cf241825032da70ee142976301d3477866c6d07587c5cb7e8a303e8a45394b7",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/secrets.rs",
+      "line_start": 39,
+      "line_end": 41,
+      "side": "new",
+      "quote": "    if let Err(err) = e.set_password(&json) {\n        log::error!(\"[secrets] Failed to write keychain: {err}\");\n    }",
+      "title": "Keychain write failures erase saved credentials",
+      "description": "When the OS keychain rejects a write, this function only logs and returns success to its caller. save_config then writes a config with all secrets stripped, and the migration path also rewrites the old file with secrets removed, so the next launch cannot recover those credentials; this also leaves the UI believing a save succeeded. Propagate the keychain error and avoid replacing the recoverable config until the secret write succeeds.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "613ebc7cc940e9526e58d83b333eb96d6d0735f28d6b7c854d376dcb44b1d8c5",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/secrets.rs",
+      "line_start": 62,
+      "line_end": 70,
+      "side": "new",
+      "quote": "pub fn save_secrets(config: &super::config::AppConfig) {\n    let vault = Vault {\n        elevenlabs_api_key: config.elevenlabs_api_key.clone(),\n        google_drive_client_secret: config.google_drive.client_secret.clone(),\n        google_drive_access_token: config.google_drive.access_token.clone(),\n        google_drive_refresh_token: config.google_drive.refresh_token.clone(),\n    };\n    write_vault(&vault);\n}",
+      "title": "Add tests for keychain secret handling",
+      "description": "PROJECT_RULES.md R-16 requires tests for new public functions with logic. This new keychain module exposes save_secrets and corresponding load, clear, and sanitization operations, but the change adds no tests for the module. Failures in persisting or stripping credentials can therefore go unnoticed despite this module being the new storage boundary for API keys and OAuth tokens.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "37e1697684cfde3e7fd0d229eeffefa24eedf56deb4f650452b27eb1c4812f7f",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/WebcamBubble.svelte",
+      "line_start": 20,
+      "line_end": 24,
+      "side": "new",
+      "quote": "\tfunction togglePosition() {\n\t\tappState.config.preferences.webcam_position =\n\t\t\tposition === 'bottom-left' ? 'bottom-right' : 'bottom-left';\n\t\tappState.saveConfig();\n\t}",
+      "title": "Add a test for webcam bubble behavior",
+      "description": "PROJECT_RULES.md R-16 requires a test in the same change for every new component with logic. WebcamBubble adds position toggling, persistence, and a frame drawing loop, but neither changed test file exercises the component. A regression in the toggle or preview lifecycle can therefore ship without the required test coverage.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "44c9760840e938f37cd3e5e7ce06bc9d2b6c7fefbc24ca008198c9e1cf6b58ae",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 98,
+      "line_end": 98,
+      "side": "new",
+      "quote": "\t\tif (appState.webcamStream && screenStream) {",
+      "title": "[P2] Test the webcam compositor recording path",
+      "description": "The added recorder tests cover only bubble geometry and the in-memory blob store; none exercises startRecording with a webcam stream. A regression in canvas setup, captureStream track selection, or the no-captureStream fallback could therefore remove the webcam from saved recordings while all tests pass. Add a focused test that verifies the composed video track is recorded when supported and that the fallback records the screen track.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "e5d5b82f2cc39e7200090d7cf392588fd12750dd5d1c8997a24f3b5aab4b4c67",
+      "also_raised_by": [
+        "code_quality"
+      ]
+    },
+    {
+      "file": "src/lib/state.svelte.ts",
+      "line_start": 13,
+      "line_end": 15,
+      "side": "new",
+      "quote": "\t\t\tclient_secret: '',\n\t\t\taccess_token: '',\n\t\t\trefresh_token: '',",
+      "title": "Drive-only Tauri configs reload without their credentials",
+      "description": "If a user connects Google Drive without configuring an ElevenLabs key, the next Tauri startup rejects the returned config at the existing API-key gate and falls back to localStorage. This change now blanks the Drive secret and tokens in that fallback, so the UI can still show Drive as connected but uploads fail because refreshDriveToken has no refresh token (or sends an empty access token). Accepting the Tauri config independently of the ElevenLabs key preserves Drive-only setups.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "eeef2621a43b3a29c92d7c15deb809135710125831311c3ee5e025e0d82c87e0",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/state.svelte.ts",
+      "line_start": 176,
+      "line_end": 176,
+      "side": "new",
+      "quote": "\t\t\tlocalStorage.setItem(STORAGE_KEY, JSON.stringify(sanitizeForStorage(this.config)));",
+      "title": "[P2] Guard the credential redaction and keychain round trip",
+      "description": "The new tests do not assert that localStorage excludes the API key and Drive secrets after saveConfig, or that saving and reloading config preserves those values through the keychain and strips them from the config file. Since this change moves credential persistence across multiple boundaries, a regression could leak credentials back into localStorage or make saved credentials disappear without being caught. Add tests for the sanitized storage payload and the keychain/config migration round trip using a controllable keychain adapter.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "00bd65edac731116df1fcbc494f5cdf0424465c3cecc479716233389e9030e7e",
+      "also_raised_by": []
+    }
+  ]
+}

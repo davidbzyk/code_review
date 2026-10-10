@@ -733,3 +733,42 @@ def test_a_start_folder_that_does_not_contain_the_repository_is_refused(
     with pytest.raises(ValueError, match="start_in"):
         run(start_in=start)
     assert not (tmp_path / "runs").exists() and not (workdir / ".review").exists()
+
+
+@pytest.mark.parametrize("where", ["in the repository", "in the start folder"])
+def test_the_run_folder_may_not_sit_where_the_agent_can_write(
+    tmp_path, workdir, skills, write_registry, where
+):
+    from review_core.launcher.run import run_review
+
+    start = tmp_path
+    runs = workdir / ".code-review" / "runs" if where == "in the repository" else tmp_path / "r"
+    (tmp_path / "codex_home").mkdir()
+    with pytest.raises(ValueError, match="run folder"):
+        run_review(
+            workdir=workdir, base="base", head="head", runner="fake", model="gpt-6-luna",
+            effort="high", timeout_sec=60, runs_dir=runs, registry_path=write_registry(),
+            codex_home=tmp_path / "codex_home", skills_dir=skills,
+            start_in=start if where == "in the start folder" else None,
+        )  # fmt: skip
+    assert not runs.exists()
+
+
+@pytest.mark.parametrize("folder", ["TMPDIR", "/tmp"])
+def test_the_run_folder_may_not_sit_in_a_temp_folder_codex_lets_the_agent_write(
+    tmp_path, workdir, skills, monkeypatch, folder
+):
+    from pathlib import Path
+
+    from review_core.launcher.run import run_review
+
+    monkeypatch.setenv("TMPDIR", str(tmp_path / "t"))
+    runs = tmp_path / "t" / "runs" if folder == "TMPDIR" else Path("/tmp") / "cr-never-created"
+    (tmp_path / "codex_home").mkdir()
+    with pytest.raises(ValueError, match="run folder"):
+        run_review(
+            workdir=workdir, base="base", head="head", runner="codex-clean", model="gpt-6-luna",
+            effort="high", timeout_sec=60, runs_dir=runs, codex_home=tmp_path / "codex_home",
+            skills_dir=skills,
+        )  # fmt: skip
+    assert not runs.exists()

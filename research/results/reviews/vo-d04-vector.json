@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "language",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 3,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/src/ffmpeg.rs",
+      "line_start": 50,
+      "line_end": 50,
+      "side": "new",
+      "quote": "            \"pad=ceil(iw/2)*2:ceil(ih/2)*2\",",
+      "title": "Add regression coverage for odd-dimension video encoding",
+      "description": "The new pad filter changes both MP4 re-encoding paths, but the change adds no tests and the repository has no discoverable test files. Without a regression test exercising odd width and odd height inputs through normalize_to_mp4 and replace_audio, removing or breaking the filter would go unnoticed and the affected videos can again fail H.264 encoding. Add coverage that verifies those inputs produce even output dimensions in both paths.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "5098c2d83b69de62a77e81fe2bb3eda64fdc8e70621a342a29a10212800a48bf",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/routes/preview/+page.svelte",
+      "line_start": 520,
+      "line_end": 523,
+      "side": "new",
+      "quote": "\t\t\t\t<button class=\"link\" onclick={async () => {\n\t\t\t\t\tif (isTauri()) {\n\t\t\t\t\t\tconst { invoke } = await import('@tauri-apps/api/core');\n\t\t\t\t\t\tawait invoke('plugin:shell|open', { path: driveLink });",
+      "title": "Handle shell open rejection",
+      "description": "If importing the Tauri API or opening the Drive URL rejects, this async click handler returns an unhandled rejected promise. The link then appears to do nothing and the preview's error state is never updated; catch the failure and report it through the page's existing error/logging path.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "51db3b18fe681a0e4291f64bd9a136aacebe6cf9c30b5eb93f386b8333194985",
+      "also_raised_by": [
+        "tests"
+      ]
+    },
+    {
+      "file": "src/routes/preview/+page.svelte",
+      "line_start": 522,
+      "line_end": 523,
+      "side": "new",
+      "quote": "\t\t\t\t\t\tconst { invoke } = await import('@tauri-apps/api/core');\n\t\t\t\t\t\tawait invoke('plugin:shell|open', { path: driveLink });",
+      "title": "Keep Tauri shell calls behind the library boundary",
+      "description": "The new preview click handler imports Tauri's IPC API and invokes the shell plugin directly from the Svelte route. This adds another view-to-infrastructure dependency and bypasses the project's existing src/lib boundary for calls that should be isolated and mockable. Move the desktop open operation into a src/lib helper and let the component call that helper.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "architecture",
+      "reviewer": "architecture",
+      "scope": "in_diff",
+      "fingerprint": "7fa4c56008425b211bb244d0208752c862d49a24f3353a2870d4a31fe2428d44",
+      "also_raised_by": [
+        "compliance"
+      ]
+    }
+  ]
+}

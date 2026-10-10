@@ -141,7 +141,7 @@ Find significant problems that affect the requested outcome. Do not seek complet
 
 False-positive categories to actively suppress. Do NOT emit a finding when any of these apply — not even at anchor `25` or `50`.
 
-- **Pre-existing issues unrelated to this diff.** Mark `pre_existing: true` only for unchanged code the diff does not interact with. If the diff makes a previously-dormant issue newly relevant (e.g., changes a caller in a way that exposes a bug downstream), it is a secondary finding, not pre-existing.
+- **Pre-existing issues unrelated to this diff.** Give `scope` `pre_existing` only to unchanged code the diff does not interact with. If the diff makes a previously-dormant issue newly relevant (e.g., changes a caller in a way that exposes a bug downstream), it is a secondary finding, not pre-existing.
 
 - **Pedantic style nitpicks that a linter or formatter would catch.** Missing semicolons, indentation, import ordering, unused-variable warnings the project's tooling already catches. Style belongs to the toolchain.
 - **Code that looks wrong but is intentional.** Check comments, commit messages, PR description, or surrounding code for evidence of intent before flagging. A persona-flagged "missing null check" guarded by an upstream `.present?` call is a false positive.

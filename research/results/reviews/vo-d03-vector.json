@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "language",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 1,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/src/config.rs",
+      "line_start": 147,
+      "line_end": 147,
+      "side": "new",
+      "quote": "    let json = serde_json::to_string_pretty(config).unwrap_or_default();",
+      "title": "Full credentials enter packaged static assets",
+      "description": "After a desktop config save, this writes the complete AppConfig, including the ElevenLabs key and Google Drive client secret, access token, and refresh token, to static/_config.json. The project uses adapter-static and Tauri's beforeBuildCommand runs pnpm build with frontendDist set to ../build, so a subsequent normal production build copies that file into the distributable frontend assets. Anyone receiving the built app can read and reuse those credentials; .gitignore only prevents source-control commits. Keep credentials out of static/_config.json or exclude this file from production build assets.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "security",
+      "reviewer": "security",
+      "scope": "in_diff",
+      "fingerprint": "e0366dc0eeda0c7b5261b5e12e2c7ea5da5d11c1af22406d532c0aaf67f214b1",
+      "also_raised_by": [
+        "tests"
+      ]
+    },
+    {
+      "file": "src/routes/preview/+page.svelte",
+      "line_start": 385,
+      "line_end": 390,
+      "side": "new",
+      "quote": "\t\t\tlet token = appState.config.google_drive.access_token;\n\t\t\tconst now = Math.floor(Date.now() / 1000);\n\t\t\tif (!appState.config.google_drive.expires_at || now >= appState.config.google_drive.expires_at) {\n\t\t\t\tlogger.info('drive', 'Token expired, refreshing...');\n\t\t\t\ttoken = await refreshDriveToken();\n\t\t\t}",
+      "title": "Token refresh branches have no regression coverage",
+      "description": "The new pre-upload decision changes authorization for both desktop and browser uploads: a missing or expired expiry triggers refresh, while a future expiry uses the stored token. No tests were added or found for these cases or for both upload modes, so regressions such as sending an expired token to the desktop command or failing to refresh legacy configurations with no expiry will go undetected. Cover missing, expired, and valid expiry values and verify the token used by each upload path.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "ca75db55197dcf9301136d9a2e758be10dcf4cf3cd323e9bce7ea569cba5adf6",
+      "also_raised_by": []
+    }
+  ]
+}

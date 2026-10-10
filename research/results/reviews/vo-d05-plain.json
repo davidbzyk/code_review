@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 3
+      },
+      {
+        "reviewer": "language",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 1,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 290,
+      "line_end": 299,
+      "side": "new",
+      "quote": "async def _do_generate(\n    *,\n    set_status,\n    data_dir: Path,\n    profile_id: str,\n    text: str,\n    language: str,\n    segments: list,\n    original_duration: float,\n):",
+      "title": "New generation helper omits required type hints",
+      "description": "PROJECT_RULES.md R-12 says: \"Python functions must carry type hints on parameters and return values\". `_do_generate` leaves `set_status` untyped and has no return annotation. The diff adds this helper; verified its signature with `git show HEAD:src-tauri/sidecar/server.py | nl -ba | sed -n '285,305p'`. Add the missing parameter and return annotations to meet the documented Python rule.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "6fe6207fce013bc531a4df2f495b4954c8d73b4c0355e5a5356b179a90eca488",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 439,
+      "line_end": 446,
+      "side": "new",
+      "quote": "async def _do_voice_convert(\n    *,\n    set_status,\n    data_dir: Path,\n    profile_id: str,\n    source_audio_path: str,\n    original_duration: float,\n):",
+      "title": "New voice conversion helper omits required type hints",
+      "description": "PROJECT_RULES.md R-12 says: \"Python functions must carry type hints on parameters and return values\". `_do_voice_convert` leaves `set_status` untyped and has no return annotation. The diff adds this helper; verified its signature with `git show HEAD:src-tauri/sidecar/server.py | nl -ba | sed -n '435,452p'`. Add the missing parameter and return annotations to meet the documented Python rule.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "b3e9d487cc3c8abb7176a38e5b7f75112e8de547dcbf18f5e765ebe64eb9e9d7",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line_start": 41,
+      "line_end": 44,
+      "side": "new",
+      "quote": "client: reqwest::Client::builder()\n                    .pool_max_idle_per_host(5)\n                    .build()\n                    .expect(\"Failed to build HTTP client\"),",
+      "title": "YouTube extraction fails once the sidecar response takes over 30 seconds",
+      "description": "The shared reqwest 0.12 client keeps its default 30-second request timeout, while the new outer timeout cannot extend that client limit. The YouTube endpoint waits for yt-dlp to finish before returning, and its caller now asks to allow 180 seconds; a download taking 30\u2013180 seconds therefore fails at the client's default timeout (the prior per-call client was configured for 180 seconds).",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "24d0eae413a48715d465b47af14f95583100beef03523c46d9753d90b953cae6",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/local_tts.rs",
+      "line_start": 618,
+      "line_end": 621,
+      "side": "new",
+      "quote": "pub async fn get_generation_audio(\n    app: tauri::AppHandle,\n    generation_id: String,\n) -> Result<Vec<u8>, String> {",
+      "title": "New audio command has no test of its behavior",
+      "description": "PROJECT_RULES.md R-16 says: \"Every new public function, command, or component with logic must have a test in the same change; a bug fix must add a test that fails before the fix.\" The new command validates the id, fetches the sidecar response, handles HTTP errors, and returns audio bytes, but the added Rust tests cover only `validate_generation_id`; `voicebox.test.ts` mocks the Tauri invoke and only tests the frontend wrapper. No test exercises this command's behavior. Verified with `git grep -n -E 'get_generation_audio|validate_generation_id' HEAD --` and the Rust test block at lines 870-889. Add a test for the command's sidecar response and error handling.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "3d17824e5ef9d7a9c119f331d53c799a0722f14f2a65c4ca644d65e5bae0d6e6",
+      "also_raised_by": [
+        "tests"
+      ]
+    },
+    {
+      "file": "src/lib/voicebox.ts",
+      "line_start": 126,
+      "line_end": 126,
+      "side": "new",
+      "quote": "\t\treturn URL.createObjectURL(blob);",
+      "title": "Revoke generated audio URLs when the wizard releases them",
+      "description": "Each call allocates a Blob URL that remains live until URL.revokeObjectURL is called or the document unloads. The create-voice route revokes it when another generation starts, but its Upload Another Sample action clears the URL without revoking it, and route navigation can leave the document alive; repeated test generations therefore retain the full audio blobs for the session. Revoke the URL whenever the route drops it and on route teardown.",
+      "severity": "P3",
+      "confidence": 100,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "8c52eeed031789188fb081d1b1e0a871434a601b468d1e4652c12c77fb552646",
+      "also_raised_by": []
+    }
+  ]
+}

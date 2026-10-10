@@ -1,0 +1,10 @@
+{
+  "code_roots": [
+    "src/",
+    "src-tauri/",
+    "scripts/",
+    ".github/",
+    "docs/"
+  ],
+  "repo_root": ".."
+}

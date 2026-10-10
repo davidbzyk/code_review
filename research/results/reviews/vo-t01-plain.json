@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 3
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "language",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 0,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 1147,
+      "line_end": 1148,
+      "side": "new",
+      "quote": "@app.delete(\"/models/{model_name}\")\nasync def delete_model(model_name: str):",
+      "title": "Model deletion endpoint has no behavioral tests",
+      "description": "The change adds a destructive endpoint that removes Hugging Face cache revisions and clears the corresponding in-memory model state, but the integration tests do not call it; the added deleteModel tests only check a mocked Tauri invocation. A regression in successful deletion, unknown or absent model handling, or cache and loaded-state invalidation could therefore ship without any test failing.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "7a4ddccd3e55db527499b905ea66eff7b9574c9c08b69e20284b4b1bdba20df7",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 1183,
+      "line_end": 1183,
+      "side": "new",
+      "quote": "        delete_strategy.execute()",
+      "title": "Model deletion blocks the sidecar event loop",
+      "description": "`delete_model` is an async FastAPI handler, but this synchronous Hugging Face cache deletion runs directly on the event-loop thread. Removing a downloaded speech model can take a noticeable amount of time, during which the sidecar cannot serve health checks, model status, or other requests. Run the cache scan and deletion in a worker thread, as the download endpoint already does for its blocking snapshot operation.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "63c2f78e1f7ad02d1634bbb01c68df9ef4b525fd6473690d907554b3e74bb9fd",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/test_tts.py",
+      "line_start": 366,
+      "line_end": 367,
+      "side": "new",
+      "quote": "                transcribe(\"/tmp/fake-audio.wav\", \"/tmp/models\", model_name=\"whisper-medium\")\n                assert tts._whisper_model_name == \"whisper-medium\"",
+      "title": "Model-selection test does not verify the loaded model",
+      "description": "This test only checks the bookkeeping name assigned after loading. It never asserts that `load_model` received the `whisper-medium` repository ID, so a regression that sends the default or an unrelated repository to the loader would still pass and leave the selected-model behavior broken.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "3b311b28bb2693e34ccbb10fb5fe1e478fe39b4bab5ff63b03561bc99b1ace52",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/local_tts.rs",
+      "line_start": 253,
+      "line_end": 255,
+      "side": "new",
+      "quote": "    if let Some(model) = whisper_model {\n        form = form.text(\"model_name\", model.to_string());\n    }",
+      "title": "Selected model propagation across the transcription request is untested",
+      "description": "The feature depends on the Rust pipeline adding the configured model to the multipart request and the sidecar forwarding that field to `tts.transcribe`. Current tests call `transcribe` directly, while the endpoint tests only cover invalid or missing paths and never send a valid request with `model_name`; omitting or renaming this field at either boundary would silently make the pipeline use the default model without failing tests.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "711600a90361acd0d8ab6271bca40efe27ae57893b4e28e9af0a7969f46e2bbc",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/routes/(app)/create-voice/+page.svelte",
+      "line_start": 89,
+      "line_end": 94,
+      "side": "new",
+      "quote": "\t\t\tconst requiredModels = [appState.config.whisper_model];\n\t\t\tif (appState.config.local_tts_mode === 'vc') {\n\t\t\t\trequiredModels.push('cosyvoice3-0.5B');\n\t\t\t} else {\n\t\t\t\trequiredModels.push('qwen-tts-1.7B');\n\t\t\t}",
+      "title": "Repeated Switches: local mode requirements are copied across screens and flows",
+      "description": "The local-mode-to-required-model policy is repeated in `downloadModels`, the prerequisite check, the create-voice status markup, and the settings readiness calculation. A future mode or model change can update only some copies, leaving users with inconsistent readiness, downloads, or status display. Extract one helper that returns the required model names and use it in these paths.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "c3540b4a3ae3ddb6bf8e321639c7099dd643ab83ed0dc3183cb373db560a123a",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/routes/(app)/settings/+page.svelte",
+      "line_start": 29,
+      "line_end": 34,
+      "side": "new",
+      "quote": "\t\tconst required = [appState.config.whisper_model];\n\t\tif (appState.config.local_tts_mode === 'vc') {\n\t\t\trequired.push('cosyvoice3-0.5B');\n\t\t} else {\n\t\t\trequired.push('qwen-tts-1.7B');\n\t\t}",
+      "title": "Duplicate the local mode model requirement policy",
+      "description": "The settings page independently encodes which models are required for each local mode, and the same policy is repeated in the create-voice prerequisite check, downloader, and status display. A change to a mode's required models can therefore make setup routing, download behavior, and readiness disagree. Move this policy into one shared helper that returns the required model names from the config, then use it in both pages and throughout create-voice.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "architecture",
+      "reviewer": "architecture",
+      "scope": "in_diff",
+      "fingerprint": "1e51fe5e17cce1de2efec9be2662f347a1284907eb836db14a5148f9f0b762fb",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/routes/(app)/settings/+page.svelte",
+      "line_start": 50,
+      "line_end": 52,
+      "side": "new",
+      "quote": "\t\tif (appState.config.provider === 'local') {\n\t\t\tloadModelStatuses();\n\t\t}",
+      "title": "Switching to Local keeps the model setup button stale",
+      "description": "If Settings opens while ElevenLabs is selected, this mount check skips loading model status. Switching the provider to Local only reloads voices, so `modelStatuses` stays empty and `requiredModelsReady()` remains false even when the required models are already downloaded; the user is sent to Setup Models instead of Create Voice.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "373b3be35c6b04d47388fc1944ab98e414687c95462f75a3921450d650d3cbdd",
+      "also_raised_by": []
+    }
+  ]
+}

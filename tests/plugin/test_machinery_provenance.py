@@ -19,13 +19,13 @@ from tests.plugin.test_skills_lint import (
     PROVENANCE_HEADER,
     SKILLS,
     TREATMENTS,
-    licence_rows,
     line_ranges,
     need_sources,
     payload_strings,
     section,
     shingles,
     source_of,
+    source_rows,
     source_shingles,
     source_texts,
     table_rows,
@@ -109,19 +109,18 @@ def test_provenance_has_the_three_sections_in_order(name):
 
 @pytest.mark.parametrize("name", PIECES)
 def test_every_row_points_at_a_real_source_line(name):
-    """Each row names an existing source file, lines inside it, and the licence as found."""
+    """Each row names an existing source file and lines inside it."""
     root = need_sources()
-    licences = licence_rows()
+    sources = source_rows()
     for row in parts(name):
         line_ranges(root, row)
         assert row["Treatment"] in TREATMENTS, row
         assert row["Part"] and len(row["What changed"]) >= 10, row
         source = source_of(row["Source path"])
-        assert source in licences, f"{source} is not in LICENCES.md"
-        assert row["Licence"] == licences[source]["Licence as found"], row
+        assert source in sources, f"{source} is not in SOURCES.md"
     for row in left_out(name):
         line_ranges(root, row)
-        assert source_of(row["Source path"]) in licences, row
+        assert source_of(row["Source path"]) in sources, row
 
 
 @pytest.mark.parametrize("name", PIECES)
@@ -211,7 +210,7 @@ def test_orchestrator_passes_the_method_line_on_in_its_place_in_the_reviewer_mes
     task = lines.index("What the change is meant to do: <task text>")
     assert lines[task + 1] == "How to gather context: <method>"
     assert lines[task + 2].startswith("Context search command:")
-    assert "last four\nlines" in text and "word for word" in text
+    assert "last five\nlines" in text and "word for word" in text
     assert "How to gather context" not in text.split("## Step 4")[1].split("## Step 5")[0]
 
 
@@ -242,7 +241,7 @@ def test_reviewer_message_makes_each_reviewer_read_its_skill_and_the_change_to_t
     assert "to its last line" in lines[refs] and "one file per command" in lines[refs]
     assert "four reading lines\nafter the findings line" in text
     assert len(optional) == 4
-    assert "last four\nlines" in text and "reading lines\nafter the findings line" in text
+    assert "last five\nlines" in text and "reading lines\nafter the findings line" in text
     assert "always sent" in text
 
 

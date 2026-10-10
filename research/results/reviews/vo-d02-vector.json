@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "language",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 1,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src/lib/state.svelte.ts",
+      "line_start": 113,
+      "line_end": 113,
+      "side": "new",
+      "quote": "\t\t\t\tif (data.elevenlabs_api_key) {",
+      "title": "Browser ignores the desktop-generated static config",
+      "description": "After desktop settings are saved, `sync_to_static` writes `_config.json` with `elevenlabs_api_key` deliberately set to an empty string while retaining voices and preferences. This condition rejects that file in browser mode, so the documented desktop-to-browser settings sync is skipped and the browser falls back to localStorage or defaults instead of loading those settings.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "6ea8a0c26deadb696814783a162443e7aa4df4f7fa71839a829505210b37787a",
+      "also_raised_by": [
+        "tests"
+      ]
+    }
+  ]
+}
