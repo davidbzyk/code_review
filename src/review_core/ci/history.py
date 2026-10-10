@@ -180,10 +180,11 @@ def changed_since(repo_dir: Path, head: str) -> Callable[[str, str], bool]:
         """True when `path` differs between `commit` and `head`, or `commit` is unknown."""
         if not commit:
             return True
-        # --literal-pathspecs: a file named `foo*.py` is that file, not a pattern.
+        # --literal-pathspecs: a file named `foo*.py` is that file, not a pattern. The post step
+        # holds the token, so no diff driver the checkout names may run (as in `pr_diff`).
         git = ["git", "--literal-pathspecs", "-C", str(repo_dir)]
-        done = subprocess.run([*git, "diff", "--quiet", commit, head, "--", path],
-                              capture_output=True)  # fmt: skip
+        done = subprocess.run([*git, "diff", "--quiet", "--no-ext-diff", "--no-textconv", commit,
+                               head, "--", path], capture_output=True)  # fmt: skip
         return done.returncode != 0
 
     return changed

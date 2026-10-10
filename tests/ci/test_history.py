@@ -210,6 +210,28 @@ def test_a_body_finding_path_is_the_real_file_name_not_its_url_encoding():
     assert t.file == "dir/a b%.py"
 
 
+def test_the_change_check_runs_no_diff_command_from_the_repositorys_config(tmp_path):
+    """The post step holds the token: a textconv driver named in the checkout must not run."""
+    import subprocess
+
+    repo, marker = tmp_path / "repo", tmp_path / "ran"
+    repo.mkdir()
+    git = ["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run([*git, "init", "-q"], check=True)
+    (repo / "x.py").write_text("a\n")
+    subprocess.run([*git, "add", "-A"], check=True)
+    subprocess.run([*git, "commit", "-qm", "a"], check=True)
+    first = subprocess.run(
+        [*git, "rev-parse", "HEAD"], capture_output=True, text=True
+    ).stdout.strip()
+    (repo / "x.py").write_text("b\n")
+    subprocess.run([*git, "commit", "-qam", "b"], check=True)
+    subprocess.run([*git, "config", "diff.x.textconv", f"touch {marker}; cat"], check=True)
+    (repo / ".gitattributes").write_text("* diff=x\n")
+    assert history.changed_since(repo, "HEAD")(first, "x.py") is True
+    assert not marker.exists()
+
+
 def test_a_body_finding_goes_outdated_once_its_file_changes_or_its_commit_is_gone(tmp_path):
     import subprocess
 
