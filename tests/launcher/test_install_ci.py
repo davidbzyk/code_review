@@ -126,6 +126,26 @@ def test_run_review_sh_skips_files_marked_generated_or_vendored(workdir, tmp_pat
     done = subprocess.run(["bash", str(workdir / ".code-review" / "run-review.sh")], env=env,
                           capture_output=True, text=True)  # fmt: skip
     assert "nothing to review" not in done.stdout
+    assert "set the CODEX_AUTH_JSON_B64 secret" in done.stderr  # it went on to review src.py
+
+
+def test_a_pull_request_cannot_mark_its_own_changes_to_skip_review(workdir, tmp_path):
+    """Skip marks are read from the base: attributes the change itself adds do not count."""
+    bundle.install(workdir)
+    git = ["git", "-C", str(workdir), "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run([*git, "add", "-A"], check=True, capture_output=True)
+    subprocess.run([*git, "commit", "-q", "-m", "install"], check=True, capture_output=True)
+    subprocess.run([*git, "tag", "installed"], check=True, capture_output=True)
+    (workdir / ".gitattributes").write_text("* linguist-vendored\n")
+    (workdir / "src.py").write_text("y = 2\n")
+    subprocess.run([*git, "add", "-A"], check=True, capture_output=True)
+    subprocess.run([*git, "commit", "-q", "-m", "hide"], check=True, capture_output=True)
+    env = {"PATH": os.environ["PATH"], "HOME": str(tmp_path), "RUNNER_TEMP": str(tmp_path / "rt"),
+           "GITHUB_WORKSPACE": str(workdir), "CR_BASE": "installed", "CR_HEAD": "HEAD"}  # fmt: skip
+    done = subprocess.run(["bash", str(workdir / ".code-review" / "run-review.sh")], env=env,
+                          capture_output=True, text=True)  # fmt: skip
+    assert "nothing to review" not in done.stdout
+    assert "set the CODEX_AUTH_JSON_B64 secret" in done.stderr
 
 
 def test_the_action_lets_codex_sandbox_before_the_review():
