@@ -422,7 +422,8 @@ def publish(doc: dict, diff: str, *, head: str, repo: str, pr: int, change_summa
     Raises CredentialInOutput, before any call, when the text holds one of `secrets`.
     """
     _check([change_summary or "", *_strings(doc["findings"])], list(secrets))  # before any call
-    posted, still_open = set(), 0
+    # None until earlier threads are read: a dry run never reads them, so it cannot claim none.
+    posted, still_open = set(), None
     if dry_run is None:
         url = f"{api}/repos/{repo}/pulls/{pr}/comments"
         # Inline comments and review bodies (off-diff findings) both carry markers; only the

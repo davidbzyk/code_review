@@ -163,6 +163,16 @@ def test_dry_run_writes_the_payloads_and_calls_nothing(tmp_path):
     assert (tmp_path / "summary.md").read_text().startswith(gh.SUMMARY_MARKER)
 
 
+def test_a_dry_run_with_no_findings_does_not_claim_the_pr_is_clean(tmp_path):
+    """A dry run reads no earlier threads, so it cannot say none of them are still open."""
+    gh.publish(review_doc([]), DIFF, head=HEAD, repo="o/r", pr=7, change_summary=None,
+               token="t", dry_run=tmp_path, request=lambda *a: None)  # fmt: skip
+    for text in (json.loads((tmp_path / "review.json").read_text())["body"],
+                 (tmp_path / "summary.md").read_text()):  # fmt: skip
+        assert "No issues found" not in text
+        assert "Earlier findings could not be read" in text
+
+
 def test_publish_posts_the_review_and_edits_an_existing_summary_in_place():
     calls = []
 
