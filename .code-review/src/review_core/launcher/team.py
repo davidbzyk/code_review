@@ -35,7 +35,7 @@ AGENTS_FOLDER = "agents"
 VALIDATOR_INPUT = "validator-input.json"
 # Template lines that are sent only when the launcher has that item; the text before the
 # placeholder is the same lead `prompt_extras` writes.
-OPTIONAL = ("<file list>", "<task text>", "<method>", "<command>")
+OPTIONAL = ("<file list>", "<task text>", "<method>", "<command>", "<earlier review>")
 _ROW = re.compile(r"^\|\s*`(\w+)`\s*\|\s*`([\w-]+)`\s*\|\s*$", re.MULTILINE)
 _BLOCK = re.compile(r"^```\n(.*?)^```$", re.MULTILINE | re.DOTALL)
 _SKILL = re.compile(r"Use the ([\w-]+) skill")

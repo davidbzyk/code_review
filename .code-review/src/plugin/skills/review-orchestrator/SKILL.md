@@ -41,7 +41,7 @@ Each loads the skill in the second column.
 | `language` | `review-language` |
 
 Give every reviewer the same message, with its own key and skill filled in. The four reading lines
-after the findings line are always sent. Leave out each of the last four
+after the findings line are always sent. Leave out each of the last five
 lines when you were not given that item, and pass the ones you have on word for word. Add nothing
 else (no hint about where problems may be, no opinion, nothing another reviewer found): they work alone.
 When the prompt says the repository is in a folder, write that in place of `in the current
@@ -59,6 +59,7 @@ Your slice is only these files: <file list>
 What the change is meant to do: <task text>
 How to gather context: <method>
 Context search command: <command>
+Earlier review of this pull request: <earlier review>
 ```
 
 ## Step 2: wait for all seven

@@ -313,6 +313,7 @@ def run_review(
     idle_sec: int | None = 600,
     slice_paths: Sequence[str] | None = None,
     task_text: str | None = None,
+    prior_review: Path | str | None = None,
     context_command: str | None = None,
     store: Path | str | None = None,
     arm: str | None = None,
@@ -332,6 +333,7 @@ def run_review(
     cli_version, when given, is the version the rollout must report. A run in which neither the
     main agent nor any sub-agent writes anything for idle_sec seconds is stopped. slice_paths
     limits every reviewer to those files; task_text says what the change is meant to do;
+    prior_review names a file of this pull request's earlier findings and how each ended;
     context_command names the search command of a context store. Each is passed on as given.
     store is a built context store: the run then gets a `ctx` wrapper in its run folder as its
     search command and records the store's arm and hash; env_file is read by that wrapper for
@@ -426,7 +428,9 @@ def run_review(
         context_command = _context_command()
     elif store is not None:
         context_command = None
-    extras = prompt_extras(slice_paths, task_text, context_command, row.method if row else None)
+    prior = str(Path(prior_review).resolve()) if prior_review else None
+    extras = prompt_extras(slice_paths, task_text, context_command, row.method if row else None,
+                           prior_review=prior)  # fmt: skip
 
     ctx = {
         "workdir": str(start), "out_dir": str(out_dir), "model": model, "effort": effort,
