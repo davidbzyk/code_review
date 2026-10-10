@@ -67,6 +67,13 @@ Every non-draft pull request opened from a branch of this repository, on open, o
 when it is marked ready. Pull requests from forks and from Dependabot get no secrets on GitHub,
 so they are skipped. The files under `.code-review/` are never reviewed.
 
+Files that `.gitattributes` marks `linguist-generated` or `linguist-vendored` are skipped too, the
+same files GitHub collapses in a pull request's diff. Mark snapshots, copied third-party code and
+generated output there:
+
+    research/** linguist-vendored
+    dist/** linguist-generated
+
 ## Security
 
 The reviewers read pull request text, which anyone opening a pull request can shape. The action
