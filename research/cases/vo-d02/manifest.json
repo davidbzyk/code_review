@@ -1,0 +1,30 @@
+{
+  "changed_lines": 64,
+  "control": false,
+  "rules_sha256": "a00c6f74ad26eae9e57d116ff1cb7047e4226bcb4e065fd90b76d0c1b7ee45c0",
+  "schema_version": 1,
+  "set": "dev",
+  "slices": [
+    {
+      "changed_lines": 64,
+      "id": "vo-d02-s01",
+      "layer": "all",
+      "paths": [
+        "src-tauri/src/config.rs",
+        "src/lib/state.svelte.ts"
+      ],
+      "renames": []
+    }
+  ],
+  "slug": "vo-d02",
+  "trees": {
+    "base": {
+      "files": 41,
+      "sha256": "5c1e8a72abab7ffacc74a53f0fc38e9a0e70d429c0dd3084c6bf945075ccfcf6"
+    },
+    "head": {
+      "files": 41,
+      "sha256": "f5665adb6052cf2520ba363f1d56656f0b4202bfb034c5eff231ca008928d29d"
+    }
+  }
+}

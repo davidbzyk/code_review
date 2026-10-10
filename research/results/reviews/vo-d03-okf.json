@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "language",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 1,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/src/config.rs",
+      "line_start": 147,
+      "line_end": 147,
+      "side": "new",
+      "quote": "    let json = serde_json::to_string_pretty(config).unwrap_or_default();",
+      "title": "Static config now contains credentials in plain text",
+      "description": "R-14 in PROJECT_RULES.md says: \"API keys, client secrets, and OAuth tokens must be stored through the secrets module or OS credential store, and must never appear in source, test fixtures, logs, error messages, or the plain config file.\" Serializing the full AppConfig writes its ElevenLabs API key and Google Drive client secret and OAuth tokens to static/_config.json. Gitignoring that file prevents accidental commits but does not satisfy the rule against storing these credentials in a plain config file; retain a credential-redacted static copy or use the secrets store.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "e0366dc0eeda0c7b5261b5e12e2c7ea5da5d11c1af22406d532c0aaf67f214b1",
+      "also_raised_by": [
+        "security"
+      ]
+    },
+    {
+      "file": "src/routes/preview/+page.svelte",
+      "line_start": 384,
+      "line_end": 390,
+      "side": "new",
+      "quote": "\t\t\t// Refresh token if expired (applies to both Tauri and browser mode)\n\t\t\tlet token = appState.config.google_drive.access_token;\n\t\t\tconst now = Math.floor(Date.now() / 1000);\n\t\t\tif (!appState.config.google_drive.expires_at || now >= appState.config.google_drive.expires_at) {\n\t\t\t\tlogger.info('drive', 'Token expired, refreshing...');\n\t\t\t\ttoken = await refreshDriveToken();\n\t\t\t}",
+      "title": "Token refresh behavior has no regression coverage",
+      "description": "The change adds refresh-before-upload behavior for both Tauri and browser uploads, including the new missing-expiry case, but the repository has no tests for this flow. A regression that skips refresh for an expired or missing expiry, fails to pass the refreshed token to the desktop command, or breaks refresh failure handling would go undetected. Add focused coverage for valid, expired, and missing expiry in both modes, asserting the token actually used for upload and the failure outcome when refresh fails.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "0b07d63098feb9ba722c701e0a5f0efc53dcc3710710631ad36b9b3c3bab6753",
+      "also_raised_by": []
+    }
+  ]
+}

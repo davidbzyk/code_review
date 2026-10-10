@@ -1,0 +1,97 @@
+use std::path::Path;
+use tokio::process::Command;
+
+/// Extract audio from a video file as 16kHz mono WAV (optimal for ElevenLabs S2S).
+pub async fn extract_audio(input_video: &Path, output_wav: &Path) -> Result<(), String> {
+    let status = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-i",
+            input_video.to_str().unwrap(),
+            "-vn",
+            "-acodec",
+            "pcm_s16le",
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
+            output_wav.to_str().unwrap(),
+        ])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run ffmpeg: {e}"))?;
+
+    if !status.status.success() {
+        let stderr = String::from_utf8_lossy(&status.stderr);
+        return Err(format!("ffmpeg extract audio failed: {stderr}"));
+    }
+    Ok(())
+}
+
+/// Replace the audio track in a video file with new audio.
+/// Re-encodes video to H.264 (input may be VP8/WebM which can't mux into MP4).
+pub async fn replace_audio(
+    input_video: &Path,
+    new_audio: &Path,
+    output_mp4: &Path,
+) -> Result<(), String> {
+    let status = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-i",
+            input_video.to_str().unwrap(),
+            "-i",
+            new_audio.to_str().unwrap(),
+            "-map",
+            "0:v",
+            "-map",
+            "1:a",
+            "-vf",
+            "pad=ceil(iw/2)*2:ceil(ih/2)*2",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-c:a",
+            "aac",
+            "-shortest",
+            output_mp4.to_str().unwrap(),
+        ])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run ffmpeg: {e}"))?;
+
+    if !status.status.success() {
+        let stderr = String::from_utf8_lossy(&status.stderr);
+        return Err(format!("ffmpeg replace audio failed: {stderr}"));
+    }
+    Ok(())
+}
+
+/// Normalize a recording to MP4 format (handles platform codec differences).
+pub async fn normalize_to_mp4(input: &Path, output_mp4: &Path) -> Result<(), String> {
+    let status = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-i",
+            input.to_str().unwrap(),
+            "-vf",
+            "pad=ceil(iw/2)*2:ceil(ih/2)*2",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-c:a",
+            "aac",
+            output_mp4.to_str().unwrap(),
+        ])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run ffmpeg: {e}"))?;
+
+    if !status.status.success() {
+        let stderr = String::from_utf8_lossy(&status.stderr);
+        return Err(format!("ffmpeg normalize failed: {stderr}"));
+    }
+    Ok(())
+}

@@ -1,0 +1,162 @@
+{
+  "version": "dev-v1",
+  "entries": [
+    {
+      "id": "vo-d01-k01",
+      "case": "vo-d01",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "The proactive Google Drive token refresh added by the change runs only in the browser upload branch; the Tauri branch still passes the stored access token unrefreshed, so a Tauri upload with an expired token fails. The refresh is also skipped when no expiry has been recorded (expires_at of 0), which in the browser branch is only rescued by the existing retry on a 401 response.",
+      "sites": [
+        {
+          "file": "src/routes/preview/+page.svelte",
+          "side": "new",
+          "line_start": 385,
+          "line_end": 385,
+          "anchor": "if (appState.config.google_drive.expires_at > 0 && now >= appState.config.google_drive.expires_at) {"
+        },
+        {
+          "file": "src/routes/preview/+page.svelte",
+          "side": "new",
+          "line_start": 373,
+          "line_end": 373,
+          "anchor": "accessToken: appState.config.google_drive.access_token,"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-d01-k02",
+      "case": "vo-d01",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "Each time a recording starts, new Tauri event listeners for the widget's stop and cancel events are registered and never removed, so after several recordings one widget click runs the handler many times.",
+      "sites": [
+        {
+          "file": "src/routes/+page.svelte",
+          "side": "new",
+          "line_start": 53,
+          "line_end": 54,
+          "anchor": "listen('recording-stop', () => handleStop());\nlisten('recording-cancel', () => handleCancel());"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-d01-k03",
+      "case": "vo-d01",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The redacted copy of the config written for browser dev mode blanks every token but keeps the Google Drive 'connected' flag true, so browser mode looks connected while holding no credentials and the connection cannot be recovered.",
+      "sites": [
+        {
+          "file": "src-tauri/src/config.rs",
+          "side": "new",
+          "line_start": 130,
+          "line_end": 131,
+          "anchor": "\"email\": &config.google_drive.email,\n\"connected\": config.google_drive.connected"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-d02-k01",
+      "case": "vo-d02",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The app only accepts a loaded config when the ElevenLabs API key is non-empty, so a valid config with other settings (voices, output folder, Drive link) but a blank key is discarded and replaced by defaults or stale browser storage.",
+      "sites": [
+        {
+          "file": "src/lib/state.svelte.ts",
+          "side": "new",
+          "line_start": 96,
+          "line_end": 96,
+          "anchor": "if (tauriConfig.elevenlabs_api_key) {"
+        },
+        {
+          "file": "src/lib/state.svelte.ts",
+          "side": "new",
+          "line_start": 113,
+          "line_end": 113,
+          "anchor": "if (data.elevenlabs_api_key) {"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-d03-k01",
+      "case": "vo-d03",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "sync_to_static now writes the whole config, including the ElevenLabs key, OAuth client secret and access and refresh tokens, as plaintext into static/_config.json, which the dev server serves to the web app and the production build copies into the app bundle.",
+      "sites": [
+        {
+          "file": "src-tauri/src/config.rs",
+          "side": "new",
+          "line_start": 147,
+          "line_end": 147,
+          "anchor": "let json = serde_json::to_string_pretty(config).unwrap_or_default();"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-d05-k01",
+      "case": "vo-d05",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "Two concurrent callers of ensure_running can both see that no startup is in progress and both stop and start the sidecar, because the starting flag is read in one step and set in another.",
+      "sites": [
+        {
+          "file": "src-tauri/src/sidecar.rs",
+          "side": "new",
+          "line_start": 312,
+          "line_end": 312,
+          "anchor": "let is_starting = { *state.starting.lock().await };"
+        },
+        {
+          "file": "src-tauri/src/sidecar.rs",
+          "side": "new",
+          "line_start": 115,
+          "line_end": 115,
+          "anchor": "*state.starting.lock().await = true;"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-d01-p01",
+      "case": "vo-d01",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The change replaces a disabled content security policy with a strict one that has no source for media streams and none that permits the preview's local video file, so in the desktop app screen capture is not available and the recorded video cannot be shown.",
+      "sites": [
+        {
+          "file": "src-tauri/tauri.conf.json",
+          "side": "new",
+          "line_start": 25,
+          "line_end": 25,
+          "anchor": "\"csp\": \"default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:; connect-src 'self' https://api.elevenlabs.io https://oauth2.googleapis.com https://www.googleapis.com https://accounts.google.com https://cdn.jsdelivr.net blob:; media-src 'self' blob:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'\""
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-d01-p02",
+      "case": "vo-d01",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The Drive connect command waits for the OAuth callback in a polling loop that calls a blocking thread sleep inside an async command, tying up an async runtime thread for up to two minutes.",
+      "sites": [
+        {
+          "file": "src-tauri/src/google_drive.rs",
+          "side": "new",
+          "line_start": 77,
+          "line_end": 77,
+          "anchor": "std::thread::sleep(Duration::from_millis(200));"
+        }
+      ],
+      "fixed_sites": []
+    }
+  ]
+}

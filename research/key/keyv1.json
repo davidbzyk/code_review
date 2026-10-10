@@ -1,0 +1,1810 @@
+{
+  "version": "v1",
+  "entries": [
+    {
+      "id": "vo-t01-k01",
+      "case": "vo-t01",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "The /health endpoint decides whether Whisper is downloaded by looking only at one hard-coded model (large-v3-turbo), so when a different registered Whisper model is the one downloaded or selected, the health report says Whisper is missing.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 703,
+          "line_end": 703,
+          "anchor": "\"whisper\": _is_model_downloaded(models_dir, \"mlx-community/whisper-large-v3-turbo\"),"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 706,
+          "line_end": 706,
+          "anchor": "_is_model_downloaded(models_dir, entry[\"repo_id\"])"
+        }
+      ]
+    },
+    {
+      "id": "vo-t01-k02",
+      "case": "vo-t01",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "The transcription endpoints call the blocking Whisper function directly inside async handlers, so a transcription freezes the sidecar's event loop and every other request (health checks, status polls) stalls until it finishes.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 733,
+          "line_end": 733,
+          "anchor": "result = do_transcribe(str(temp_path), str(DATA_DIR / \"models\"), **kwargs)"
+        },
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 766,
+          "line_end": 766,
+          "anchor": "result = do_transcribe(audio_path, str(DATA_DIR / \"models\"), **kwargs)"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 740,
+          "line_end": 740,
+          "anchor": "do_transcribe, str(temp_path), str(DATA_DIR / \"models\"), **kwargs"
+        },
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 775,
+          "line_end": 775,
+          "anchor": "do_transcribe, audio_path, str(DATA_DIR / \"models\"), **kwargs"
+        }
+      ]
+    },
+    {
+      "id": "vo-t01-k03",
+      "case": "vo-t01",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "When scanning the model cache raises, the failure is logged but the 'not downloaded' result is still stored in the 30 second cache, so a transient error makes an installed model look missing for the next 30 seconds.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 689,
+          "line_end": 690,
+          "anchor": "logger.warning(f\"Error scanning model cache for {repo_id}: {e}\")\n_model_cache[cache_key] = (result, now)"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 691,
+          "line_end": 691,
+          "anchor": "return False  # Don't cache transient errors"
+        }
+      ]
+    },
+    {
+      "id": "vo-t01-k04",
+      "case": "vo-t01",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "An unknown Whisper model name is silently used as a Hugging Face repo id instead of being rejected, so a typo or a stale saved setting makes the sidecar try to download and load an arbitrary repository.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/tts.py",
+          "side": "new",
+          "line_start": 161,
+          "line_end": 161,
+          "anchor": "repo_id = WHISPER_MODELS.get(model_name, model_name)"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/sidecar/tts.py",
+          "side": "new",
+          "line_start": 167,
+          "line_end": 167,
+          "anchor": "repo_id = WHISPER_MODELS[model_name]"
+        }
+      ]
+    },
+    {
+      "id": "vo-t01-k05",
+      "case": "vo-t01",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "When the Whisper model is switched, or a model is deleted, the old model is only dereferenced; nothing forces garbage collection or clears the MLX/MPS cache, so the old weights can stay in memory next to the new model.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/tts.py",
+          "side": "new",
+          "line_start": 166,
+          "line_end": 167,
+          "anchor": "if model_name != _whisper_model_name:\n_whisper_model = None"
+        },
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 1193,
+          "line_end": 1194,
+          "anchor": "_tts_module._whisper_model = None\n_tts_module._whisper_model_name = None"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/sidecar/tts.py",
+          "side": "new",
+          "line_start": 173,
+          "line_end": 174,
+          "anchor": "_whisper_model = None\ngc.collect()"
+        },
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 1219,
+          "line_end": 1220,
+          "anchor": "_tts_module._whisper_model_name = None\ngc.collect()"
+        }
+      ]
+    },
+    {
+      "id": "vo-t01-k06",
+      "case": "vo-t01",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "The delete-model endpoint puts the file deletion and the in-memory cleanup in one try block, so an error during cleanup after the files are already gone returns a 500 'failed to delete' to the user even though the model was deleted.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 1190,
+          "line_end": 1190,
+          "anchor": "# Clear in-memory model references based on category"
+        },
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 1210,
+          "line_end": 1212,
+          "anchor": "except Exception as e:\nlogger.error(f\"Failed to delete model {canonical}: {e}\", exc_info=True)\nreturn error_response(500, f\"Failed to delete model: {e}\")"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 1214,
+          "line_end": 1214,
+          "anchor": "# --- In-memory cleanup (best-effort, files already deleted) ---"
+        }
+      ]
+    },
+    {
+      "id": "vo-t01-k07",
+      "case": "vo-t01",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "After deleting the active Whisper model, the page searches for a replacement in the status list loaded before the delete instead of refreshing it first. The deleted model is already excluded by name, so the effect is limited to other models' statuses possibly being stale.",
+      "sites": [
+        {
+          "file": "src/routes/(app)/models/+page.svelte",
+          "side": "new",
+          "line_start": 52,
+          "line_end": 53,
+          "anchor": "// If we deleted the active whisper model, select another downloaded one\nif (modelName === appState.config.whisper_model) {"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/routes/(app)/models/+page.svelte",
+          "side": "new",
+          "line_start": 54,
+          "line_end": 54,
+          "anchor": "// Refresh statuses before fallback selection so we use fresh data"
+        }
+      ]
+    },
+    {
+      "id": "vo-t01-k08",
+      "case": "vo-t01",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "Selecting a Whisper model updates the in-memory setting first and then saves it without handling a save failure, so the UI keeps showing a model that was never persisted.",
+      "sites": [
+        {
+          "file": "src/routes/(app)/models/+page.svelte",
+          "side": "new",
+          "line_start": 68,
+          "line_end": 70,
+          "anchor": "async function selectWhisperModel(modelName: string) {\nappState.config.whisper_model = modelName;\nawait appState.saveConfig();"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/routes/(app)/models/+page.svelte",
+          "side": "new",
+          "line_start": 73,
+          "line_end": 73,
+          "anchor": "const prev = appState.config.whisper_model;"
+        }
+      ]
+    },
+    {
+      "id": "vo-t01-k09",
+      "case": "vo-t01",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "Failures in the model download and delete handlers are shown to the user but never logged, so the cause is lost when debugging.",
+      "sites": [
+        {
+          "file": "src/routes/(app)/models/+page.svelte",
+          "side": "new",
+          "line_start": 43,
+          "line_end": 43,
+          "anchor": "modelsError = `Download failed: ${err}`;"
+        },
+        {
+          "file": "src/routes/(app)/models/+page.svelte",
+          "side": "new",
+          "line_start": 62,
+          "line_end": 62,
+          "anchor": "modelsError = `Delete failed: ${err}`;"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/routes/(app)/models/+page.svelte",
+          "side": "new",
+          "line_start": 45,
+          "line_end": 45,
+          "anchor": "logger.error('models', 'Model download failed', err);"
+        },
+        {
+          "file": "src/routes/(app)/models/+page.svelte",
+          "side": "new",
+          "line_start": 66,
+          "line_end": 66,
+          "anchor": "logger.error('models', 'Model deletion failed', err);"
+        }
+      ]
+    },
+    {
+      "id": "vo-t01-k10",
+      "case": "vo-t01",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "A derived value is declared with the rune's function form instead of the lazily evaluated form the framework documents for computed values; it still works when called as a function.",
+      "sites": [
+        {
+          "file": "src/routes/(app)/settings/+page.svelte",
+          "side": "new",
+          "line_start": 28,
+          "line_end": 28,
+          "anchor": "let requiredModelsReady = $derived(() => {"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/routes/(app)/settings/+page.svelte",
+          "side": "new",
+          "line_start": 29,
+          "line_end": 29,
+          "anchor": "let requiredModelsReady = $derived.by(() => {"
+        }
+      ]
+    },
+    {
+      "id": "vo-t01-k11",
+      "case": "vo-t01",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "The new delete-model command builds a fresh HTTP client for every call instead of using the shared client held in app state.",
+      "sites": [
+        {
+          "file": "src-tauri/src/models.rs",
+          "side": "new",
+          "line_start": 149,
+          "line_end": 152,
+          "anchor": "let client = reqwest::Client::builder()\n.timeout(std::time::Duration::from_secs(60))\n.build()\n.map_err(|e| e.to_string())?;"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/src/models.rs",
+          "side": "new",
+          "line_start": 165,
+          "line_end": 165,
+          "anchor": "http.client.delete(&url).send(),"
+        }
+      ]
+    },
+    {
+      "id": "vo-t01-k12",
+      "case": "vo-t01",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "The model status endpoint scans the Hugging Face cache once per registered model instead of once per request.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 1077,
+          "line_end": 1077,
+          "anchor": "downloaded = _is_model_downloaded(models_dir, repo_id)"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 1097,
+          "line_end": 1097,
+          "anchor": "downloaded = repo_id in downloaded_repos"
+        }
+      ]
+    },
+    {
+      "id": "vo-t02-k01",
+      "case": "vo-t02",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "The profile id from the request URL is joined into file paths and used for recursive deletion with no validation, so an id like '..' can read or delete directories outside the profiles folder.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/profiles.py",
+          "side": "new",
+          "line_start": 72,
+          "line_end": 72,
+          "anchor": "shutil.rmtree(profile_dir)"
+        },
+        {
+          "file": "src-tauri/sidecar/profiles.py",
+          "side": "new",
+          "line_start": 43,
+          "line_end": 43,
+          "anchor": "meta_file = _profiles_dir(data_dir) / profile_id / \"profile.json\""
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-k02",
+      "case": "vo-t02",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The cached voice prompt is loaded with PyTorch's loader in its unrestricted mode, which unpickles arbitrary objects from a file in the cache directory.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/tts.py",
+          "side": "new",
+          "line_start": 247,
+          "line_end": 247,
+          "anchor": "return torch.load(cache_path, map_location=\"cpu\", weights_only=False)"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-k03",
+      "case": "vo-t02",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The YouTube extraction endpoint passes any user-supplied URL straight to yt-dlp with no scheme or host check, so the sidecar can be made to fetch arbitrary URLs.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 383,
+          "line_end": 383,
+          "anchor": "return JSONResponse(status_code=400, content={\"error\": \"url is required\"})"
+        },
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 378,
+          "line_end": 378,
+          "anchor": "url = request.get(\"url\", \"\")"
+        },
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 406,
+          "line_end": 406,
+          "anchor": "dl.download([url])"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-k04",
+      "case": "vo-t02",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "Two sidecar endpoints read any file path the caller names (the transcribe-from-path and the add-sample-from-path routes) without restricting it to the data or temp directories, so they can be used to copy arbitrary readable files into a voice profile or to transcribe them.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 237,
+          "line_end": 238,
+          "anchor": "audio_path = request.get(\"audio_path\", \"\")\nif not audio_path or not Path(audio_path).exists():"
+        },
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 529,
+          "line_end": 529,
+          "anchor": "audio_bytes = Path(audio_path).read_bytes()"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-k05",
+      "case": "vo-t02",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "Generation records are kept in an in-memory dict forever and their audio files are never deleted, and the work queue is unbounded, so a long session grows memory and disk without limit.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 63,
+          "line_end": 64,
+          "anchor": "_generation_queue: asyncio.Queue = asyncio.Queue()\n_generations: dict = {}  # id -> {status, error, audio_path}"
+        },
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 272,
+          "line_end": 272,
+          "anchor": "_generations[gen_id] = {\"status\": \"queued\", \"error\": None, \"audio_path\": None}"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-k06",
+      "case": "vo-t02",
+      "tier": 1,
+      "tag": "needs_other_files",
+      "description": "The Rust side health-checks the sidecar with a 2 second timeout before every proxied call and kills and restarts it when the check fails, but the Python server can be too slow to answer /health while it is busy with ML work (transcription runs directly on the event loop; generation and model loading run in a worker thread but compete for the interpreter), so a long-running job is killed and restarted mid-run by the next status poll.",
+      "sites": [
+        {
+          "file": "src-tauri/src/sidecar.rs",
+          "side": "new",
+          "line_start": 245,
+          "line_end": 245,
+          "anchor": ".timeout(std::time::Duration::from_secs(2))"
+        },
+        {
+          "file": "src-tauri/src/sidecar.rs",
+          "side": "new",
+          "line_start": 313,
+          "line_end": 313,
+          "anchor": "log::warn!(\"[sidecar] Health check failed on port {} — restarting\", port);"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-k07",
+      "case": "vo-t02",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The model download command reads the whole progress stream into one string before parsing it, so progress events reach the UI only after the download has finished.",
+      "sites": [
+        {
+          "file": "src-tauri/src/models.rs",
+          "side": "new",
+          "line_start": 95,
+          "line_end": 97,
+          "anchor": "// Read SSE stream from sidecar and forward progress to frontend\nlet body = response.text().await.unwrap_or_default();\nfor line in body.lines() {"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-k08",
+      "case": "vo-t02",
+      "tier": 1,
+      "tag": "needs_other_files",
+      "description": "The webview's content security policy does not allow audio from the local sidecar address, so playing generated audio in a production build fails even though it works in development.",
+      "sites": [
+        {
+          "file": "src-tauri/tauri.conf.json",
+          "side": "new",
+          "line_start": 26,
+          "line_end": 26,
+          "anchor": "\"csp\": \"default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:; connect-src 'self' https://api.elevenlabs.io https://oauth2.googleapis.com https://www.googleapis.com https://accounts.google.com blob: mediastream:; media-src 'self' blob: mediastream: https://asset.localhost; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'\""
+        },
+        {
+          "file": "src/lib/voicebox.ts",
+          "side": "new",
+          "line_start": 121,
+          "line_end": 121,
+          "anchor": "return `http://127.0.0.1:${status.port}/audio/${generationId}`;"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-k09",
+      "case": "vo-t02",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The sidecar is meant to be frozen with PyInstaller but its entry point never calls the multiprocessing freeze-support call before the heavy imports, so child processes spawned by torch re-run the whole server start-up and the frozen build silently misbehaves.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 684,
+          "line_end": 685,
+          "anchor": "if __name__ == \"__main__\":\nmain()"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-k10",
+      "case": "vo-t02",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "Uploading a voice sample first converts the file bytes into a plain JavaScript number array before sending them to Rust, which inflates the payload several times over and slows large uploads.",
+      "sites": [
+        {
+          "file": "src/lib/voicebox.ts",
+          "side": "new",
+          "line_start": 74,
+          "line_end": 74,
+          "anchor": "const fileBytes = Array.from(new Uint8Array(buffer));"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-k11",
+      "case": "vo-t02",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "Reading the audio duration swallows every exception silently and falls back to zero, hiding why a transcription reports no duration.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/tts.py",
+          "side": "new",
+          "line_start": 77,
+          "line_end": 80,
+          "anchor": "info = sf.info(audio_path)\nduration = info.duration\nexcept Exception:\npass"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-k12",
+      "case": "vo-t02",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "Voice-prompt cache keys are built with MD5.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/tts.py",
+          "side": "new",
+          "line_start": 232,
+          "line_end": 232,
+          "anchor": "h = hashlib.md5()"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-k13",
+      "case": "vo-t02",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "The result of the kill signal sent to the sidecar child process is discarded.",
+      "sites": [
+        {
+          "file": "src-tauri/src/sidecar.rs",
+          "side": "new",
+          "line_start": 268,
+          "line_end": 268,
+          "anchor": "let _ = child.start_kill();"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-k14",
+      "case": "vo-t02",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "Two Tauri commands that return the same model status are both registered, and each builds its own HTTP client per call instead of sharing one.",
+      "sites": [
+        {
+          "file": "src-tauri/src/models.rs",
+          "side": "new",
+          "line_start": 24,
+          "line_end": 24,
+          "anchor": "pub async fn check_models_downloaded("
+        },
+        {
+          "file": "src-tauri/src/lib.rs",
+          "side": "new",
+          "line_start": 71,
+          "line_end": 71,
+          "anchor": "models::check_models_downloaded,"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-k15",
+      "case": "vo-t02",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The generic proxy command forwards any path the frontend names to the sidecar and treats any unknown HTTP method as GET, so frontend code can reach every sidecar endpoint, not just the ones the app uses.",
+      "sites": [
+        {
+          "file": "src-tauri/src/local_tts.rs",
+          "side": "new",
+          "line_start": 370,
+          "line_end": 371,
+          "anchor": "let url = format!(\"http://127.0.0.1:{}{}\", port, path);\nlog::info!(\"[local_tts] Sidecar {} {}\", method, url);"
+        },
+        {
+          "file": "src-tauri/src/local_tts.rs",
+          "side": "new",
+          "line_start": 382,
+          "line_end": 382,
+          "anchor": "_ => client.get(&url),"
+        },
+        {
+          "file": "src-tauri/src/local_tts.rs",
+          "side": "new",
+          "line_start": 411,
+          "line_end": 412,
+          "anchor": "let url = format!(\"http://127.0.0.1:{}{}\", port, path);\nlog::info!(\"[local_tts] Upload to {} (file: {}, {}KB)\", url, file_name, file_bytes.len() / 1024);"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-k16",
+      "case": "vo-t02",
+      "tier": 1,
+      "tag": "needs_other_files",
+      "description": "The model download call goes through the generic JSON proxy and parses the reply with JSON.parse, but the download endpoint answers with a server-sent-event stream, so every model download from the UI fails with a JSON syntax error.",
+      "sites": [
+        {
+          "file": "src/lib/voicebox.ts",
+          "side": "new",
+          "line_start": 59,
+          "line_end": 59,
+          "anchor": "await this.jsonRequest('/models/download', 'POST', { model_name: modelName });"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t03-k01",
+      "case": "vo-t03",
+      "tier": 1,
+      "tag": "needs_other_files",
+      "description": "The voice-conversion request sent to the sidecar omits the original video duration, so the sidecar skips padding and the converted audio comes out shorter than the video and cuts off early.",
+      "sites": [
+        {
+          "file": "src-tauri/src/local_tts.rs",
+          "side": "new",
+          "line_start": 380,
+          "line_end": 380,
+          "anchor": "\"source_audio_path\": input_path_str,"
+        },
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 596,
+          "line_end": 596,
+          "anchor": "original_duration = float(request.get(\"original_duration\", 0))"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t03-k02",
+      "case": "vo-t03",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "The path check that is meant to confine file reads to allowed directories compares string prefixes, so a sibling directory that shares a prefix with an allowed one (for example 'data-evil' next to 'data') passes.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 123,
+          "line_end": 123,
+          "anchor": "if str(resolved).startswith(str(Path(parent).resolve())):"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t03-k03",
+      "case": "vo-t03",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "The cached voice prompt is loaded in torch's restricted tensors-only mode, which rejects the prompt's class (a list of qwen-tts VoiceClonePromptItem objects saved by the same module), so every load raises, the error is swallowed and the cache is never used.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/tts.py",
+          "side": "new",
+          "line_start": 400,
+          "line_end": 400,
+          "anchor": "return torch.load(cache_path, map_location=\"cpu\", weights_only=True)"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t03-k04",
+      "case": "vo-t03",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The delete-profile route does not handle the ValueError that the profile code now raises for an invalid id, so a bad id returns a 500 instead of a 400 or 404.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 942,
+          "line_end": 944,
+          "anchor": "if _delete(DATA_DIR, profile_id):\nreturn {\"ok\": True}\nreturn error_response(404, \"Profile not found\")"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t03-k05",
+      "case": "vo-t03",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The hallucination filter drops any transcription segment whose compression ratio is high, and the Whisper call keeps its own repetition suppression on, so valid repeated phrases are thrown away or collapsed and the generated voice-over loses speech.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/tts.py",
+          "side": "new",
+          "line_start": 112,
+          "line_end": 113,
+          "anchor": "seg.get(\"no_speech_prob\", 0) > 0.6\nor seg.get(\"compression_ratio\", 0) > 2.4"
+        },
+        {
+          "file": "src-tauri/sidecar/tts.py",
+          "side": "new",
+          "line_start": 171,
+          "line_end": 171,
+          "anchor": "result = _whisper_model.generate(str(audio_path), word_timestamps=True)"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t03-k07",
+      "case": "vo-t03",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "A 30 second health-check timeout is also used by the UI-facing connection probes, so a status check can hang for 30 seconds when the sidecar is unreachable.",
+      "sites": [
+        {
+          "file": "src-tauri/src/sidecar.rs",
+          "side": "new",
+          "line_start": 248,
+          "line_end": 248,
+          "anchor": ".timeout(std::time::Duration::from_secs(30))"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t03-k08",
+      "case": "vo-t03",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "Silence insertion between words assumes every word has a real duration; words Whisper gives zero duration collapse onto one timestamp, producing zero gaps and wrongly proportioned padding.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/chunked_tts.py",
+          "side": "new",
+          "line_start": 172,
+          "line_end": 174,
+          "anchor": "# Calculate original inter-word gaps (the pauses TTS didn't reproduce)\ngaps = []\nfor i in range(1, len(word_timing)):"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t04-k01",
+      "case": "vo-t04",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "If reading the keychain fails for any reason other than 'no entry', the code treats it as an empty vault and returns the config with blank secrets; the frontend then holds blank secrets and its next save writes them back, overwriting every stored secret with blanks.",
+      "sites": [
+        {
+          "file": "src-tauri/src/secrets.rs",
+          "side": "new",
+          "line_start": 28,
+          "line_end": 32,
+          "anchor": "Err(keyring::Error::NoEntry) => Vault::default(),\nErr(err) => {\nlog::warn!(\"[secrets] Failed to read keychain: {err}\");\nVault::default()\n}"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t04-k02",
+      "case": "vo-t04",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "The migration of old plaintext secrets into the keychain only triggers when the ElevenLabs key or the access token is set, so a config holding only the Drive client secret or refresh token is never migrated and keeps those secrets in config.json.",
+      "sites": [
+        {
+          "file": "src-tauri/src/config.rs",
+          "side": "new",
+          "line_start": 133,
+          "line_end": 133,
+          "anchor": "if !config.elevenlabs_api_key.is_empty() || !config.google_drive.access_token.is_empty() {"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/src/config.rs",
+          "side": "new",
+          "line_start": 136,
+          "line_end": 136,
+          "anchor": "if !config.secrets_migrated"
+        }
+      ]
+    },
+    {
+      "id": "vo-t04-k03",
+      "case": "vo-t04",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "After moving secrets to the keychain the code rewrites config.json to strip them but ignores a failed write, and it has no completion marker, so the plaintext secrets can stay on disk and the migration reruns on every config load.",
+      "sites": [
+        {
+          "file": "src-tauri/src/config.rs",
+          "side": "new",
+          "line_start": 140,
+          "line_end": 140,
+          "anchor": "fs::write(&path, json).ok(); // best-effort rewrite"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/src/config.rs",
+          "side": "new",
+          "line_start": 149,
+          "line_end": 149,
+          "anchor": "fs::write(&path, json).map_err(|e| format!(\"Failed to write migrated config: {e}\"))?;"
+        }
+      ]
+    },
+    {
+      "id": "vo-t04-k04",
+      "case": "vo-t04",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "The dev-mode sync of the config to static/_config.json returns early when the API key is empty, but it is always called with the already-sanitized config whose key is empty, so the sync never happens.",
+      "sites": [
+        {
+          "file": "src-tauri/src/config.rs",
+          "side": "new",
+          "line_start": 203,
+          "line_end": 205,
+          "anchor": "if config.elevenlabs_api_key.is_empty() {\nreturn;\n}"
+        },
+        {
+          "file": "src-tauri/src/config.rs",
+          "side": "new",
+          "line_start": 192,
+          "line_end": 193,
+          "anchor": "// Sync non-secret config to static dir in dev mode\nsync_to_static(&file_config);"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/src/config.rs",
+          "side": "new",
+          "line_start": 210,
+          "line_end": 212,
+          "anchor": "#[cfg(debug_assertions)]\nfn sync_to_static(config: &AppConfig) {\nlet json = serde_json::to_string_pretty(config).unwrap_or_default();"
+        }
+      ]
+    },
+    {
+      "id": "vo-t04-k05",
+      "case": "vo-t04",
+      "tier": 1,
+      "tag": "needs_other_files",
+      "description": "The change removes automatic public sharing of uploaded recordings from the Rust Drive upload, but the browser upload path in the preview page still makes every uploaded file readable by anyone with the link.",
+      "sites": [
+        {
+          "file": "src-tauri/src/google_drive.rs",
+          "side": "new",
+          "line_start": 270,
+          "line_end": 270,
+          "anchor": "// Removed automatic public sharing — screen recordings may contain sensitive content."
+        },
+        {
+          "file": "src/routes/preview/+page.svelte",
+          "side": "new",
+          "line_start": 373,
+          "line_end": 373,
+          "anchor": "body: JSON.stringify({ type: 'anyone', role: 'reader' })"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t04-k06",
+      "case": "vo-t04",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "When the user ends screen sharing from the OS, the handler calls the internal cleanup() instead of cancelRecording(), so the buffered chunk arrays are not cleared and the audio recorder is not explicitly stopped before the streams are dropped.",
+      "sites": [
+        {
+          "file": "src/lib/recorder.svelte.ts",
+          "side": "new",
+          "line_start": 75,
+          "line_end": 76,
+          "anchor": "logger.warn('record', 'Screen track ended externally');\ncleanup();"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/lib/recorder.svelte.ts",
+          "side": "new",
+          "line_start": 75,
+          "line_end": 76,
+          "anchor": "logger.warn('record', 'Screen track ended externally');\ncancelRecording();"
+        }
+      ]
+    },
+    {
+      "id": "vo-t04-k07",
+      "case": "vo-t04",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "The webcam preview loop requests a new animation frame every tick while it waits for the video element, spinning the CPU.",
+      "sites": [
+        {
+          "file": "src/lib/WebcamBubble.svelte",
+          "side": "new",
+          "line_start": 34,
+          "line_end": 37,
+          "anchor": "if (!canvasEl || !videoEl) {\nanimFrameId = requestAnimationFrame(drawPreview);\nreturn;\n}"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/lib/WebcamBubble.svelte",
+          "side": "new",
+          "line_start": 35,
+          "line_end": 35,
+          "anchor": "setTimeout(() => { animFrameId = requestAnimationFrame(drawPreview); }, 100);"
+        }
+      ]
+    },
+    {
+      "id": "vo-t04-k08",
+      "case": "vo-t04",
+      "tier": 2,
+      "tag": "needs_other_files",
+      "description": "The webcam bubble stops all webcam tracks when it is destroyed, but the recorder's compositor owns and still uses that stream, so unmounting the bubble during or right after a recording kills the webcam feed.",
+      "sites": [
+        {
+          "file": "src/lib/WebcamBubble.svelte",
+          "side": "new",
+          "line_start": 90,
+          "line_end": 96,
+          "anchor": "onDestroy(() => {\nstopPreviewLoop();\nif (appState.webcamStream) {\nappState.webcamStream.getTracks().forEach(t => t.stop());\nappState.webcamStream = null;\n}\n});"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/lib/WebcamBubble.svelte",
+          "side": "new",
+          "line_start": 90,
+          "line_end": 92,
+          "anchor": "onDestroy(() => {\nstopPreviewLoop();\n});"
+        }
+      ]
+    },
+    {
+      "id": "vo-t04-k09",
+      "case": "vo-t04",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "The path allowlist for reading recordings compares the canonicalized request against un-canonicalized directories, so on macOS, where the temp directory sits under the /var symlink, every file in the app's own temp recording directory is refused and the preview cannot load a fresh recording.",
+      "sites": [
+        {
+          "file": "src-tauri/src/commands/recording.rs",
+          "side": "new",
+          "line_start": 49,
+          "line_end": 50,
+          "anchor": "let temp_dir = std::env::temp_dir();\nlet home_dir = dirs::home_dir().unwrap_or_default();"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/src/commands/recording.rs",
+          "side": "new",
+          "line_start": 49,
+          "line_end": 49,
+          "anchor": "let temp_dir = std::fs::canonicalize(std::env::temp_dir()).unwrap_or_else(|_| std::env::temp_dir());"
+        }
+      ]
+    },
+    {
+      "id": "vo-t04-k10",
+      "case": "vo-t04",
+      "tier": 1,
+      "tag": "needs_other_files",
+      "description": "get_config and save_config are plain synchronous Tauri commands that do blocking keychain and file I/O, so they run on the main thread and freeze the window while the keychain answers.",
+      "sites": [
+        {
+          "file": "src-tauri/src/config.rs",
+          "side": "new",
+          "line_start": 119,
+          "line_end": 119,
+          "anchor": "pub fn get_config(app: tauri::AppHandle) -> Result<AppConfig, String> {"
+        },
+        {
+          "file": "src-tauri/src/config.rs",
+          "side": "new",
+          "line_start": 180,
+          "line_end": 180,
+          "anchor": "pub fn save_config(app: tauri::AppHandle, config: AppConfig) -> Result<(), String> {"
+        },
+        {
+          "file": "src-tauri/src/config.rs",
+          "side": "new",
+          "line_start": 143,
+          "line_end": 144,
+          "anchor": "// Always overlay secrets from keychain (authoritative source)\ncrate::secrets::load_secrets(&mut config);"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t04-k11",
+      "case": "vo-t04",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "Finalizing a recording that was stopped before any data arrived reads a directory that does not exist and returns the raw operating-system error to the user.",
+      "sites": [
+        {
+          "file": "src-tauri/src/commands/recording.rs",
+          "side": "new",
+          "line_start": 72,
+          "line_end": 73,
+          "anchor": "let mut chunks: Vec<PathBuf> = fs::read_dir(&dir)\n.map_err(|e| e.to_string())?"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/src/commands/recording.rs",
+          "side": "new",
+          "line_start": 75,
+          "line_end": 77,
+          "anchor": "if !dir.exists() {\nreturn Err(\"No recording data — stopped too quickly\".to_string());\n}"
+        }
+      ]
+    },
+    {
+      "id": "vo-t04-k12",
+      "case": "vo-t04",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The allowlist for reading files accepts any path under the system temp directory, so the webview can read any other app's temp files, not just this app's recordings.",
+      "sites": [
+        {
+          "file": "src-tauri/src/commands/recording.rs",
+          "side": "new",
+          "line_start": 53,
+          "line_end": 53,
+          "anchor": "let allowed = requested.starts_with(&temp_dir)"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t05-k01",
+      "case": "vo-t05",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "The commands that open a file and reveal it in Finder act on any path the frontend sends, with no check that the path is inside the recordings folder, unlike the delete command beside them.",
+      "sites": [
+        {
+          "file": "src-tauri/src/library.rs",
+          "side": "new",
+          "line_start": 220,
+          "line_end": 220,
+          "anchor": "open::that(&path).map_err(|e| format!(\"Failed to open file: {e}\"))"
+        },
+        {
+          "file": "src-tauri/src/library.rs",
+          "side": "new",
+          "line_start": 229,
+          "line_end": 230,
+          "anchor": ".arg(\"-R\")\n.arg(&path)"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/src/library.rs",
+          "side": "new",
+          "line_start": 222,
+          "line_end": 223,
+          "anchor": "validate_in_output_dir(&PathBuf::from(&path), &output_dir)?;\nopen::that(&path).map_err(|e| format!(\"Failed to open file: {e}\"))"
+        },
+        {
+          "file": "src-tauri/src/library.rs",
+          "side": "new",
+          "line_start": 231,
+          "line_end": 232,
+          "anchor": "validate_in_output_dir(&PathBuf::from(&path), &output_dir)?;\ntokio::process::Command::new(\"open\")"
+        }
+      ]
+    },
+    {
+      "id": "vo-t05-k02",
+      "case": "vo-t05",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "For the local provider the metadata file stores the voice profile's opaque id as the voice name, so the library shows an id like a UUID instead of the voice name.",
+      "sites": [
+        {
+          "file": "src-tauri/src/pipeline.rs",
+          "side": "new",
+          "line_start": 278,
+          "line_end": 278,
+          "anchor": "Some(config.local_voice_profile_id.as_str())"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/src/pipeline.rs",
+          "side": "new",
+          "line_start": 282,
+          "line_end": 282,
+          "anchor": "let voice_profile = if voice_replacement { voice_name } else { None };"
+        }
+      ]
+    },
+    {
+      "id": "vo-t05-k03",
+      "case": "vo-t05",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The status bar shows the local voice profile's id as the voice label instead of its name.",
+      "sites": [
+        {
+          "file": "src/lib/StatusBar.svelte",
+          "side": "new",
+          "line_start": 34,
+          "line_end": 34,
+          "anchor": "return appState.config.local_voice_profile_id || 'No profile';"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/lib/StatusBar.svelte",
+          "side": "new",
+          "line_start": 48,
+          "line_end": 48,
+          "anchor": "return localVoiceName || 'No profile';"
+        }
+      ]
+    },
+    {
+      "id": "vo-t05-k04",
+      "case": "vo-t05",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The change removes the settings page's save-and-back step, which was the only thing that saved several settings: adding, removing or changing the default voice, and edits to the output folder, API key and Google Drive credential inputs, now only change in-memory state and are lost on restart unless some other control happens to save.",
+      "sites": [
+        {
+          "file": "src/routes/(app)/settings/+page.svelte",
+          "side": "new",
+          "line_start": 122,
+          "line_end": 123,
+          "anchor": "newVoiceName = '';\nnewVoiceId = '';"
+        },
+        {
+          "file": "src/routes/(app)/settings/+page.svelte",
+          "side": "new",
+          "line_start": 135,
+          "line_end": 138,
+          "anchor": "appState.config.voices = appState.config.voices.map((v) => ({\n...v,\nis_default: v.id === id\n}));"
+        },
+        {
+          "file": "src/routes/(app)/settings/+page.svelte",
+          "side": "new",
+          "line_start": 336,
+          "line_end": 336,
+          "anchor": "<input id=\"output-dir\" bind:value={appState.config.output_dir} class=\"input\" />"
+        },
+        {
+          "file": "src/routes/settings/+page.svelte",
+          "side": "old",
+          "line_start": 78,
+          "line_end": 79,
+          "anchor": "async function saveAndBack() {\nawait appState.saveConfig();"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/routes/(app)/settings/+page.svelte",
+          "side": "new",
+          "line_start": 122,
+          "line_end": 124,
+          "anchor": "newVoiceName = '';\nnewVoiceId = '';\nappState.saveConfig();"
+        },
+        {
+          "file": "src/routes/(app)/settings/+page.svelte",
+          "side": "new",
+          "line_start": 341,
+          "line_end": 341,
+          "anchor": "<input id=\"output-dir\" bind:value={appState.config.output_dir} class=\"input\" onblur={() => appState.saveConfig()} />"
+        }
+      ]
+    },
+    {
+      "id": "vo-t05-k06",
+      "case": "vo-t05",
+      "tier": 2,
+      "tag": "needs_other_files",
+      "description": "The new library resolver says it mirrors the pipeline's output-folder fallback but does not: when the configured output folder is empty the pipeline's own (older) fallback creates nothing and writes the video into the current working directory, while the library lists the default folder, so the two disagree and the recording does not appear. The pipeline was not switched to the shared resolver.",
+      "sites": [
+        {
+          "file": "src-tauri/src/pipeline.rs",
+          "side": "new",
+          "line_start": 43,
+          "line_end": 43,
+          "anchor": "let output_dir = PathBuf::from(&config.output_dir);"
+        },
+        {
+          "file": "src-tauri/src/library.rs",
+          "side": "new",
+          "line_start": 119,
+          "line_end": 121,
+          "anchor": "/// Resolve the actual output directory, falling back to the system default\n/// if the configured path doesn't exist. Mirrors the pipeline's fallback logic.\nfn resolve_output_dir(configured: &str) -> PathBuf {"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/src/pipeline.rs",
+          "side": "new",
+          "line_start": 43,
+          "line_end": 43,
+          "anchor": "let output_dir = crate::library::resolve_output_dir(&config.output_dir);"
+        }
+      ]
+    },
+    {
+      "id": "vo-t05-k07",
+      "case": "vo-t05",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "After a successful Drive upload the code updates the recording's metadata file only if it exists and parses; write failures are discarded, so the Drive link is silently not recorded.",
+      "sites": [
+        {
+          "file": "src-tauri/src/google_drive.rs",
+          "side": "new",
+          "line_start": 293,
+          "line_end": 294,
+          "anchor": "std::fs::write(&meta_path, json).ok();\nlog::info!(\"[drive] Updated meta.json with drive URL\");"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/src/google_drive.rs",
+          "side": "new",
+          "line_start": 301,
+          "line_end": 301,
+          "anchor": "Ok(_) => log::info!(\"[drive] Wrote meta.json with drive URL\"),"
+        }
+      ]
+    },
+    {
+      "id": "vo-t05-k08",
+      "case": "vo-t05",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "The metadata file stores the creation time as a string while the upload time is a number.",
+      "sites": [
+        {
+          "file": "src-tauri/src/pipeline.rs",
+          "side": "new",
+          "line_start": 294,
+          "line_end": 294,
+          "anchor": "\"createdAt\": chrono_timestamp(),"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/src/pipeline.rs",
+          "side": "new",
+          "line_start": 288,
+          "line_end": 288,
+          "anchor": "\"createdAt\": chrono_timestamp().parse::<u64>().unwrap_or(0),"
+        }
+      ]
+    },
+    {
+      "id": "vo-t05-k09",
+      "case": "vo-t05",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "Computed values are declared with the rune's function form instead of the lazily evaluated form; they still work when called.",
+      "sites": [
+        {
+          "file": "src/lib/StatusBar.svelte",
+          "side": "new",
+          "line_start": 32,
+          "line_end": 32,
+          "anchor": "const voiceLabel = $derived(() => {"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/lib/StatusBar.svelte",
+          "side": "new",
+          "line_start": 46,
+          "line_end": 46,
+          "anchor": "const voiceLabel = $derived.by(() => {"
+        }
+      ]
+    },
+    {
+      "id": "vo-t05-k10",
+      "case": "vo-t05",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "The open and reveal actions on a library card are fired from inline handlers with no error handling, so a failure is an unhandled rejection, and the delete and upload handlers only write to the console; in no case does the user see a message.",
+      "sites": [
+        {
+          "file": "src/lib/RecordingCard.svelte",
+          "side": "new",
+          "line_start": 154,
+          "line_end": 154,
+          "anchor": "<button class=\"action-btn\" onclick={() => libraryState.openInSystem(recording.path)} title=\"Play\">"
+        },
+        {
+          "file": "src/lib/RecordingCard.svelte",
+          "side": "new",
+          "line_start": 173,
+          "line_end": 173,
+          "anchor": "<button class=\"action-btn\" onclick={() => libraryState.revealInFinder(recording.path)} title=\"Show in Finder\">"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/lib/RecordingCard.svelte",
+          "side": "new",
+          "line_start": 126,
+          "line_end": 126,
+          "anchor": "async function handleOpen() {"
+        }
+      ]
+    },
+    {
+      "id": "vo-t06-k01",
+      "case": "vo-t06",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "If recording is cleaned up while the region selector is open (for example the shared screen ends), the pending selection promise is dropped without being settled, so the start call never returns and the record button stays disabled.",
+      "sites": [
+        {
+          "file": "src/lib/recorder.svelte.ts",
+          "side": "new",
+          "line_start": 508,
+          "line_end": 510,
+          "anchor": "regionRect = null;\nregionResolve = null;\nregionReject = null;"
+        },
+        {
+          "file": "src/lib/recorder.svelte.ts",
+          "side": "new",
+          "line_start": 111,
+          "line_end": 113,
+          "anchor": "screenStream.getVideoTracks()[0]?.addEventListener('ended', () => {\nlogger.warn('record', 'Screen track ended externally');\ncancelRecording();"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/lib/recorder.svelte.ts",
+          "side": "new",
+          "line_start": 517,
+          "line_end": 517,
+          "anchor": "if (regionResolve) regionResolve(null);"
+        }
+      ]
+    },
+    {
+      "id": "vo-t06-k02",
+      "case": "vo-t06",
+      "tier": 1,
+      "tag": "visible_in_diff",
+      "description": "Cancelling the region selection rejects the pending promise with no reason, so the start flow throws an undefined error and the user sees an 'undefined' error message.",
+      "sites": [
+        {
+          "file": "src/lib/recorder.svelte.ts",
+          "side": "new",
+          "line_start": 530,
+          "line_end": 532,
+          "anchor": "if (regionReject) {\nregionReject();\n}"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/lib/recorder.svelte.ts",
+          "side": "new",
+          "line_start": 559,
+          "line_end": 561,
+          "anchor": "export function cancelRegionSelection(): void {\nif (regionResolve) {\nregionResolve(null);"
+        }
+      ]
+    },
+    {
+      "id": "vo-t06-k03",
+      "case": "vo-t06",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The config commands were made async but still do blocking keychain and file I/O directly on the async runtime, so they can stall other tasks.",
+      "sites": [
+        {
+          "file": "src-tauri/src/config.rs",
+          "side": "new",
+          "line_start": 122,
+          "line_end": 122,
+          "anchor": "pub async fn get_config(app: tauri::AppHandle) -> Result<AppConfig, String> {"
+        },
+        {
+          "file": "src-tauri/src/config.rs",
+          "side": "new",
+          "line_start": 189,
+          "line_end": 189,
+          "anchor": "pub async fn save_config(app: tauri::AppHandle, config: AppConfig) -> Result<(), String> {"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src-tauri/src/config.rs",
+          "side": "new",
+          "line_start": 122,
+          "line_end": 124,
+          "anchor": "pub async fn get_config(app: tauri::AppHandle) -> Result<AppConfig, String> {\nlet path = config_path(&app)?;\ntokio::task::spawn_blocking(move || {"
+        }
+      ]
+    },
+    {
+      "id": "vo-t06-k04",
+      "case": "vo-t06",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "If the user cancels the screen picker (or capture fails) after the app window was minimized, the error path never restores the window, so the app stays minimized.",
+      "sites": [
+        {
+          "file": "src/lib/recorder.svelte.ts",
+          "side": "new",
+          "line_start": 98,
+          "line_end": 98,
+          "anchor": "screenStream = await displayPromise;"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t06-k05",
+      "case": "vo-t06",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The Record Region / Cancel toolbar is placed a fixed distance above the selection, so a selection near the top edge pushes it off screen and the selection cannot be confirmed.",
+      "sites": [
+        {
+          "file": "src/lib/RegionSelector.svelte",
+          "side": "new",
+          "line_start": 136,
+          "line_end": 136,
+          "anchor": "<div class=\"actions\" style=\"left:{selRect.x + selRect.width / 2}px; top:{selRect.y - 48}px;\" onmousedown={(e) => e.stopPropagation()}>"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/lib/RegionSelector.svelte",
+          "side": "new",
+          "line_start": 129,
+          "line_end": 129,
+          "anchor": "<div class=\"actions\" style=\"left:{selRect.x + selRect.width / 2}px; top:{selRect.y < 56 ? selRect.y + selRect.height + 8 : selRect.y - 48}px;\" onmousedown={(e) => e.stopPropagation()}>"
+        }
+      ]
+    },
+    {
+      "id": "vo-t06-k06",
+      "case": "vo-t06",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "The mouse-down position is not clamped to the selector area, so the selection can start with negative coordinates.",
+      "sites": [
+        {
+          "file": "src/lib/RegionSelector.svelte",
+          "side": "new",
+          "line_start": 43,
+          "line_end": 44,
+          "anchor": "startX = e.clientX - rect.left;\nstartY = e.clientY - rect.top;"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/lib/RegionSelector.svelte",
+          "side": "new",
+          "line_start": 43,
+          "line_end": 44,
+          "anchor": "startX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));\nstartY = Math.max(0, Math.min(e.clientY - rect.top, rect.height));"
+        }
+      ]
+    },
+    {
+      "id": "vo-t06-k07",
+      "case": "vo-t06",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "Failures to minimize or restore the window are swallowed by empty catch blocks.",
+      "sites": [
+        {
+          "file": "src/lib/recorder.svelte.ts",
+          "side": "new",
+          "line_start": 94,
+          "line_end": 95,
+          "anchor": "await tauriWindow.minimize();\n} catch { /* non-fatal */ }"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/lib/recorder.svelte.ts",
+          "side": "new",
+          "line_start": 94,
+          "line_end": 94,
+          "anchor": "} catch (err) { logger.warn('record', 'Failed to minimize window for screen picker', err); }"
+        }
+      ]
+    },
+    {
+      "id": "vo-t06-k08",
+      "case": "vo-t06",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "The canvas context for the region screenshot is fetched with a non-null assertion, so a null context becomes an unexplained TypeError.",
+      "sites": [
+        {
+          "file": "src/lib/recorder.svelte.ts",
+          "side": "new",
+          "line_start": 135,
+          "line_end": 135,
+          "anchor": "tmpCanvas.getContext('2d')!.drawImage(tmpVideo, 0, 0, frameW, frameH);"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/lib/recorder.svelte.ts",
+          "side": "new",
+          "line_start": 134,
+          "line_end": 134,
+          "anchor": "if (!tmpCtx) throw new Error('Failed to create canvas context for region screenshot');"
+        }
+      ]
+    },
+    {
+      "id": "vo-t06-k09",
+      "case": "vo-t06",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "Recording starts right after the selection overlay is cleared, without waiting for it to leave the screen, so the first frames can contain the overlay.",
+      "sites": [
+        {
+          "file": "src/lib/recorder.svelte.ts",
+          "side": "new",
+          "line_start": 146,
+          "line_end": 149,
+          "anchor": "});\nregionResolve = null;\nregionReject = null;\nappState.regionScreenshot = '';"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/lib/recorder.svelte.ts",
+          "side": "new",
+          "line_start": 149,
+          "line_end": 149,
+          "anchor": "await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));"
+        }
+      ]
+    },
+    {
+      "id": "vo-t06-k10",
+      "case": "vo-t06",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "The compositor log line always reports the screen size and a webcam overlay, which is wrong when the canvas is a cropped region without a webcam.",
+      "sites": [
+        {
+          "file": "src/lib/recorder.svelte.ts",
+          "side": "new",
+          "line_start": 244,
+          "line_end": 244,
+          "anchor": "logger.info('record', `Compositor: ${canvasW}x${canvasH} with webcam overlay`);"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/lib/recorder.svelte.ts",
+          "side": "new",
+          "line_start": 252,
+          "line_end": 252,
+          "anchor": "logger.info('record', `Compositor: ${compositorCanvas.width}x${compositorCanvas.height}${webcamVideoEl ? ' with webcam overlay' : ''}`);"
+        }
+      ]
+    },
+    {
+      "id": "vo-t01-p01",
+      "case": "vo-t01",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The new delete-model command builds the sidecar URL by pasting the frontend-supplied model name into the path with no validation, so a name containing path segments reaches other sidecar routes with the DELETE method (for example a voice profile), outside the model routes the command is meant for.",
+      "sites": [
+        {
+          "file": "src-tauri/src/models.rs",
+          "side": "new",
+          "line_start": 147,
+          "line_end": 147,
+          "anchor": "let url = format!(\"http://127.0.0.1:{}/models/{}\", port, model);"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-p01",
+      "case": "vo-t02",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The YouTube download passes no playlist or retry limits to yt-dlp, so a playlist or channel URL makes it work through every entry with no download cap and no socket timeout.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 401,
+          "line_end": 403,
+          "anchor": "\"outtmpl\": str(video_path),\n\"quiet\": True,\n\"no_warnings\": True,"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-p02",
+      "case": "vo-t02",
+      "tier": 2,
+      "tag": "needs_other_files",
+      "description": "Transcription loads a different Hugging Face repository than the one the model download endpoint fetches and the status check reports: the download map points Whisper at the mlx-community repository while the transcribe function loads the openai one, so the model the setup step downloads is never the one transcription uses, and the first transcription has to fetch another model on its own.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/tts.py",
+          "side": "new",
+          "line_start": 52,
+          "line_end": 52,
+          "anchor": "_whisper_model = load(\"openai/whisper-large-v3-turbo\")"
+        },
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 585,
+          "line_end": 585,
+          "anchor": "\"whisper\": \"mlx-community/whisper-large-v3-turbo\","
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-p03",
+      "case": "vo-t02",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "Cached voice prompts are loaded onto the CPU while the model runs on the Apple GPU device, so a cached prompt is not on the same device as a freshly created one.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/tts.py",
+          "side": "new",
+          "line_start": 247,
+          "line_end": 247,
+          "anchor": "return torch.load(cache_path, map_location=\"cpu\", weights_only=False)"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t02-p04",
+      "case": "vo-t02",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "The generic sidecar proxy gives every request 30 seconds, and the create-voice page sends transcription through it, so a transcription that has to load the Whisper model first can exceed the limit and be reported as failed.",
+      "sites": [
+        {
+          "file": "src-tauri/src/local_tts.rs",
+          "side": "new",
+          "line_start": 374,
+          "line_end": 374,
+          "anchor": ".timeout(std::time::Duration::from_secs(30))"
+        },
+        {
+          "file": "src/routes/create-voice/+page.svelte",
+          "side": "new",
+          "line_start": 163,
+          "line_end": 164,
+          "anchor": "const transcriptResult = await tauriInvoke<string>('sidecar_fetch', {\npath: '/transcribe-path',"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t03-p01",
+      "case": "vo-t03",
+      "tier": 2,
+      "tag": "visible_in_diff",
+      "description": "The change adds a voice-conversion mode that needs a third model (CosyVoice3) but leaves it out of the model status list and the download map, so the setup wizard never shows it or downloads it and the first conversion has to fetch the model on its own in the middle of the job.",
+      "sites": [
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 625,
+          "line_end": 625,
+          "anchor": "vc_model_id = \"mlx-community/Fun-CosyVoice3-0.5B-2512-8bit\""
+        },
+        {
+          "file": "src-tauri/sidecar/server.py",
+          "side": "new",
+          "line_start": 958,
+          "line_end": 959,
+          "anchor": "whisper_downloaded = _is_model_downloaded(models_dir, \"whisper\")\nqwen_downloaded = _is_model_downloaded(models_dir, \"qwen\")"
+        }
+      ],
+      "fixed_sites": []
+    },
+    {
+      "id": "vo-t05-p01",
+      "case": "vo-t05",
+      "tier": 3,
+      "tag": "visible_in_diff",
+      "description": "After a Drive upload the card writes the new link straight into the recording object it received as a prop instead of updating the shared library state.",
+      "sites": [
+        {
+          "file": "src/lib/RecordingCard.svelte",
+          "side": "new",
+          "line_start": 108,
+          "line_end": 109,
+          "anchor": "if (driveUrl && recording.meta) {\nrecording.meta.driveUrl = driveUrl;"
+        }
+      ],
+      "fixed_sites": [
+        {
+          "file": "src/lib/RecordingCard.svelte",
+          "side": "new",
+          "line_start": 116,
+          "line_end": 116,
+          "anchor": "libraryState.updateRecordingMeta(recording.path, { driveUrl });"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "by_case": {
+    "vo-t01": 13,
+    "vo-t02": 20,
+    "vo-t03": 8,
+    "vo-t04": 12,
+    "vo-t05": 10,
+    "vo-t06": 10
+  },
+  "by_tag": {
+    "needs_other_files": 9,
+    "visible_in_diff": 64
+  },
+  "by_tier": {
+    "1": 18,
+    "2": 26,
+    "3": 29
+  },
+  "entries": 73,
+  "sha256": "9b35e38479f03f5e4f03984df38215551a271d4bd6a20e30731815d6b097039b",
+  "version": "v1"
+}

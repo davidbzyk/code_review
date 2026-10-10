@@ -1,0 +1,56 @@
+{
+  "changed_lines": 3198,
+  "control": false,
+  "rules_sha256": "a00c6f74ad26eae9e57d116ff1cb7047e4226bcb4e065fd90b76d0c1b7ee45c0",
+  "schema_version": 1,
+  "set": "test",
+  "slices": [
+    {
+      "changed_lines": 3198,
+      "id": "vo-t03-s01",
+      "layer": "all",
+      "paths": [
+        "README.md",
+        "lefthook.yml",
+        "scripts/build-sidecar.sh",
+        "src-tauri/Cargo.toml",
+        "src-tauri/sidecar/chunked_tts.py",
+        "src-tauri/sidecar/profiles.py",
+        "src-tauri/sidecar/requirements.txt",
+        "src-tauri/sidecar/server.py",
+        "src-tauri/sidecar/test_binary.sh",
+        "src-tauri/sidecar/test_chunked_tts.py",
+        "src-tauri/sidecar/test_server_integration.py",
+        "src-tauri/sidecar/test_tts.py",
+        "src-tauri/sidecar/tts.py",
+        "src-tauri/sidecar/voiceover-tts.spec",
+        "src-tauri/src/commands/recording.rs",
+        "src-tauri/src/config.rs",
+        "src-tauri/src/ffmpeg.rs",
+        "src-tauri/src/google_drive.rs",
+        "src-tauri/src/lib.rs",
+        "src-tauri/src/local_tts.rs",
+        "src-tauri/src/pipeline.rs",
+        "src-tauri/src/sidecar.rs",
+        "src-tauri/tauri.conf.json",
+        "src/lib/state.svelte.ts",
+        "src/lib/voicebox.test.ts",
+        "src/lib/voicebox.ts",
+        "src/routes/create-voice/+page.svelte",
+        "src/routes/settings/+page.svelte"
+      ],
+      "renames": []
+    }
+  ],
+  "slug": "vo-t03",
+  "trees": {
+    "base": {
+      "files": 71,
+      "sha256": "e64beaca1c4ba15604bac8d002085a63cecd84def593d0a88f968653b3daba3f"
+    },
+    "head": {
+      "files": 76,
+      "sha256": "51b2a147dcd9d494c3ea5adce775e81dc354153f0a4617f2679675245f1375c1"
+    }
+  }
+}

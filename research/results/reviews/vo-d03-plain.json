@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "partial",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "not_run",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "language",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 0,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/src/config.rs",
+      "line_start": 147,
+      "line_end": 147,
+      "side": "new",
+      "quote": "    let json = serde_json::to_string_pretty(config).unwrap_or_default();",
+      "title": "Private config now crosses into the static asset boundary",
+      "description": "`AppConfig` contains the ElevenLabs key and Google Drive client secret, access token, and refresh token. Serializing the entire object into `static/_config.json` makes those private values available through the Vite static-file serving path; the gitignore only prevents committing the file and does not constrain who can fetch it. Keep the browser-facing static config limited to non-secret fields and provide credential-dependent browser operations through a private boundary.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "architecture",
+      "reviewer": "architecture",
+      "scope": "in_diff",
+      "fingerprint": "e0366dc0eeda0c7b5261b5e12e2c7ea5da5d11c1af22406d532c0aaf67f214b1",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/routes/preview/+page.svelte",
+      "line_start": 387,
+      "line_end": 390,
+      "side": "new",
+      "quote": "\t\t\tif (!appState.config.google_drive.expires_at || now >= appState.config.google_drive.expires_at) {\n\t\t\t\tlogger.info('drive', 'Token expired, refreshing...');\n\t\t\t\ttoken = await refreshDriveToken();\n\t\t\t}",
+      "title": "Token expiry refresh behavior has no regression coverage",
+      "description": "This changes the Drive upload contract for both Tauri and browser modes: a missing or elapsed expires_at now triggers refresh before upload, while a future expiry reuses the existing token. The repository has no automated test files or test framework configured, so none exercise those cases or prove refresh failure prevents upload. A regression in this condition could send expired credentials to Drive or make uploads fail after token expiry. Add focused coverage for missing, elapsed, and future expiry, including the shared behavior across both upload modes.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "9637e1c3cfaf58d7be5a22c849a09701cc2356fdf94500498a3d5e53fe345e6a",
+      "also_raised_by": []
+    }
+  ]
+}

@@ -1,0 +1,268 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 3
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 4
+      },
+      {
+        "reviewer": "language",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 1,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 242,
+      "line_end": 242,
+      "side": "new",
+      "quote": "async def _run_generation(gen_id: str, generate_fn):",
+      "title": "Add complete type hints to the generation helper",
+      "description": "PROJECT_RULES.md R-12 says: \u201cPython functions must carry type hints on parameters and return values\u201d. The new helper leaves `generate_fn` untyped and has no return annotation, so its async contract is not represented in the code. Verification: `nl -ba src-tauri/sidecar/server.py | sed -n '242,247p'` shows the incomplete signature.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "ed6669255fdc6a86e33c2b5605749ab0b7d446ef83ea12e8aa36221266c6354a",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 585,
+      "line_end": 586,
+      "side": "new",
+      "quote": "@app.post(\"/voice-convert\")\nasync def voice_convert(request: dict):",
+      "title": "[P1] Move conversion orchestration out of the sidecar route module",
+      "description": "This addition puts the file at 1,087 lines, up from 685, and adds a roughly 200-line model loading and audio conversion workflow directly to the general HTTP server module. That crosses the review's 1,000-line regression threshold and makes route registration, model lifecycle, and signal processing harder to change independently. Move the conversion implementation into a focused sidecar module and leave this route to validate the request and queue the work.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "a45c24b8431c24b90be9a2206d6cedf344bca7ec0d06b814719432e3ff816222",
+      "also_raised_by": [
+        "compliance"
+      ]
+    },
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 611,
+      "line_end": 617,
+      "side": "new",
+      "quote": "    async def _do_voice_convert():\n        import asyncio\n        import soundfile as sf\n        import mlx.core as mx\n        from mlx_audio.tts.utils import load_model\n        from mlx_audio.tts.generate import load_audio\n        from profiles import get_samples",
+      "title": "Voice conversion model workflow lives in the HTTP server",
+      "description": "The new route's nested worker owns CosyVoice model loading, profile sample preparation, chunking, inference, and audio assembly in server.py. That makes the API layer responsible for a second speech engine and bypasses the existing speech-engine boundary in tts.py, so model changes and engine-level testing now require changing the HTTP server and its generation lifecycle together. Move the conversion workflow into a dedicated engine module (or the existing speech engine module) and keep the route responsible for request validation and queueing.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "architecture",
+      "reviewer": "architecture",
+      "scope": "in_diff",
+      "fingerprint": "5ac42f8c64f973ad14ee9fca3bfac6dba329a5066c3401a57b68e7154e935439",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/test_server_integration.py",
+      "line_start": 113,
+      "line_end": 116,
+      "side": "new",
+      "quote": "    def test_path_traversal_rejected(self, client):\n        \"\"\"Profile ID with path traversal should be rejected.\"\"\"\n        response = client.delete(\"/profiles/../../etc/passwd\")\n        assert response.status_code in (400, 404, 422, 500)",
+      "title": "Traversal test accepts an internal server error",
+      "description": "This assertion treats HTTP 500 as successful rejection, so an unhandled exception in the profile deletion path passes the security regression test. That hides broken error handling and makes the test unable to distinguish deliberate path rejection from a server crash; assert only the route's documented client-error rejection statuses and the error response.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "3a493bb501265a9fdd70047a29a4f8e1373a3733899dea01011aa65d50c2ee18",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/test_server_integration.py",
+      "line_start": 124,
+      "line_end": 140,
+      "side": "new",
+      "quote": "class TestVoiceConvertEndpoint:\n    def test_missing_fields_returns_400(self, client):\n        response = client.post(\"/voice-convert\", json={})\n        assert response.status_code == 400\n\n    def test_missing_source_audio_returns_400(self, client):\n        response = client.post(\"/voice-convert\", json={\n            \"profile_id\": \"test-profile\",\n            \"source_audio_path\": \"/nonexistent/path/audio.wav\",\n        })\n        assert response.status_code == 400\n\n    def test_missing_profile_id_returns_400(self, client):\n        response = client.post(\"/voice-convert\", json={\n            \"source_audio_path\": \"/tmp/some-audio.wav\",\n        })\n        assert response.status_code == 400",
+      "title": "Voice conversion has no successful endpoint test",
+      "description": "All coverage for the new /voice-convert route stops at malformed requests or a missing input file. Nothing verifies that a valid profile and source are accepted, that the queued conversion reaches a terminal status, or that audio can be downloaded. The route's core behavior can therefore break while these integration tests remain green; stub the model boundary and exercise the successful request and generation lifecycle.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "242c0afc4c6f2fb6e85337bf7f501ff912c3fe57bed007cce3345d1fba879e17",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/test_tts.py",
+      "line_start": 135,
+      "line_end": 147,
+      "side": "new",
+      "quote": "        # After clamping, Nested's start becomes 5.0 but end is 2.0 -> degenerate\n        # Team 1 is adding a guard to remove these, so this test expects it\n        texts = [s[\"text\"] for s in result]\n        assert \"Nested\" not in texts  # degenerate segment should be removed\n        assert \"First\" in texts\n        assert \"Third\" in texts\n\n    def test_hallucination_leading_dots_kept_if_no_guard(self):\n        \"\"\"Segments with leading dots/ellipsis: verify normal text is always preserved.\n\n        Note: A leading-dot filter may be added later. This test ensures the\n        normal segment is always present regardless.\n        \"\"\"",
+      "title": "[P3] Remove team and future-work notes from test comments",
+      "description": "These comments record temporary team coordination and speculate about a future filter. That context will age independently of the assertions and can mislead maintainers about intended behavior. Keep the test names and assertions as the contract, and remove the iteration-bound notes.",
+      "severity": "P3",
+      "confidence": 100,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "d1dc1c5f01b185a7da8eb6c79c98aab02d850051f7f5fa55979bc2e8ec264655",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/tts.py",
+      "line_start": 54,
+      "line_end": 54,
+      "side": "new",
+      "quote": "    def _finalize_phrase(word_list, start):",
+      "title": "Type the phrase finalizer helper",
+      "description": "PROJECT_RULES.md R-12 says: \u201cPython functions must carry type hints on parameters and return values\u201d. This new helper has no parameter or return annotations, leaving its phrase input and optional result contract unchecked. Verification: `nl -ba src-tauri/sidecar/tts.py | sed -n '54,76p'` shows the signature and returned phrase shape.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "a8a919e20cf6df254e1881c76ec142cdfd35e17021aea92317484d0345b11513",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/ffmpeg.rs",
+      "line_start": 86,
+      "line_end": 86,
+      "side": "new",
+      "quote": "pub async fn probe_duration(input: &Path) -> Result<f64, String> {",
+      "title": "Add a test for duration probing",
+      "description": "PROJECT_RULES.md R-16 says: \u201cEvery new public function, command, or component with logic must have a test in the same change\u201d. `probe_duration` is a new public function with ffprobe and ffmpeg fallback behavior, but the changed ffmpeg tests cover only `parse_ffmpeg_time`; none exercises this function or either probe path. Verification: `rg -n 'probe_duration|fn .*duration' src-tauri/src/ffmpeg.rs src-tauri/src` returns the function and its caller, with no test for `probe_duration`.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "fac04ec11c0d413fff5db005c3ced2120f2891d5229dbb7331eafe37055afc15",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/local_tts.rs",
+      "line_start": 233,
+      "line_end": 233,
+      "side": "new",
+      "quote": "    log::info!(\"[local_tts] Transcribe response: {}\", &body_text[..body_text.len().min(500)]);",
+      "title": "CWE-532: Transcription text is written to application logs",
+      "description": "A successful transcription response contains the user's recognized speech, and this new info log records its first 500 characters. That can persist or be exposed wherever application logs are collected, leaking private dictated content. Log only non-sensitive metadata such as response size and segment count, or redact the transcript before logging.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "security",
+      "reviewer": "security",
+      "scope": "in_diff",
+      "fingerprint": "83bc901ef4184c6ebb1f4d0da4ab06fc432e8555f24a014fdf354ce4bd227ff4",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/pipeline.rs",
+      "line_start": 172,
+      "line_end": 177,
+      "side": "new",
+      "quote": "            local_tts::voice_convert(\n                port,\n                &config.local_voice_profile_id,\n                &extracted_wav,\n                &transformed_audio,\n            ).await?;",
+      "title": "Voice conversion skips padding when the video outlasts its audio",
+      "description": "For a recording whose video is longer than its audio track, this branch drops the probed `video_duration` that the TTS branch passes through. `voice_convert` therefore submits no `original_duration`, so `/voice-convert` defaults it to 0 and skips the sidecar's pad/truncate step; the muxed output can end with a silent audio tail instead of matching the full recording duration. Pass the probed duration through the VC request as well.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "9b32ba568030e66773e1c2cada1a0f13cc1480687f165d0a54519d92507fc78d",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/state.svelte.ts",
+      "line_start": 62,
+      "line_end": 62,
+      "side": "new",
+      "quote": "\tlocal_tts_mode: string;",
+      "title": "[P2] Type the local mode as its two supported values",
+      "description": "The new setting only supports `tts` and `vc` (also represented by `LocalTtsMode` in Rust), but this TypeScript contract accepts any string. A misspelled mode can pass type checking at the settings call sites and drift from the Rust enum. Narrow this field to `'tts' | 'vc'` so invalid modes are rejected where they are assigned.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "1a440eb0904258c48cf73426ce8f074a6c55e4d07636f77516d10cd2adb9ade9",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/voicebox.ts",
+      "line_start": 75,
+      "line_end": 75,
+      "side": "new",
+      "quote": "\t\tconst fileBytes = new Uint8Array(buffer);",
+      "title": "Nested Uint8Array is not serialized as a Vec<u8>",
+      "description": "This value is passed inside the `args` object to `tauriInvoke`, whose wrapper forwards object arguments to Tauri's JSON IPC serializer. Nested typed arrays serialize as indexed objects rather than numeric arrays, while `sidecar_upload` expects `file_bytes: Vec<u8>`, so sample uploads fail during command deserialization. The same change is made for transcription uploads in `create-voice/+page.svelte`, breaking that path too. Convert the typed array to a number array, or send it through Tauri's raw-payload form with a matching `Request` command.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "3eb9a3be68197fba3db8336a4dc493665229be8ea10c2ebf525bf522d77648f5",
+      "also_raised_by": []
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "VoiceOver",
+  "version": "0.1.0",
+  "identifier": "com.voiceover.app",
+  "build": {
+    "frontendDist": "../build",
+    "devUrl": "http://localhost:5170",
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "VoiceOver",
+        "width": 480,
+        "height": 640,
+        "resizable": true,
+        "center": true,
+        "decorations": true,
+        "backgroundColor": [15, 23, 42, 255]
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:; connect-src 'self' https://api.elevenlabs.io https://oauth2.googleapis.com https://www.googleapis.com https://accounts.google.com blob: mediastream:; media-src 'self' blob: mediastream: https://asset.localhost; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/ffmpeg",
+      "binaries/voiceover-tts"
+    ]
+  }
+}

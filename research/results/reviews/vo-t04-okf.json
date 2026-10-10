@@ -1,0 +1,207 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 3
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "language",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 3,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": ".github/workflows/ci.yml",
+      "line_start": 20,
+      "line_end": 22,
+      "side": "new",
+      "quote": "      - run: pnpm install --frozen-lockfile\n      - run: pnpm check\n      - run: pnpm test",
+      "title": "CI never runs the production frontend build",
+      "description": "The frontend job checks types and runs tests but never invokes the existing `pnpm build` script. A change that passes `svelte-check` and Vitest while breaking Vite's production bundling or adapter output can therefore pass this new CI gate, leaving production builds unverified.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "a56a826c113a0a057ebebcd338687534ad1c5f105b96d66ef1ac2393733938fd",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/config.rs",
+      "line_start": 140,
+      "line_end": 140,
+      "side": "new",
+      "quote": "        fs::write(&path, json).ok(); // best-effort rewrite",
+      "title": "Migration can leave credentials in plaintext config",
+      "description": "Project rule PROJECT_RULES.md R-14 says: \"API keys, client secrets, and OAuth tokens must be stored through the secrets module or OS credential store, and must never appear in source, test fixtures, logs, error messages, or the plain config file.\" If this rewrite fails, the pre-keychain config file keeps its secrets and get_config ignores the failure and returns normally. Propagate the rewrite error (and ensure secret storage succeeded) so the command does not treat an incomplete migration as successful. Verified with `git show HEAD:src-tauri/src/config.rs | nl -ba | sed -n '118,150p'`; the quoted line is present.",
+      "severity": "P1",
+      "confidence": 75,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "7c8ec28f8225c78df2c2004d132db48e018afa3a6840bc763be7e87162a51a3d",
+      "also_raised_by": [
+        "security",
+        "tests"
+      ]
+    },
+    {
+      "file": "src-tauri/src/config.rs",
+      "line_start": 182,
+      "line_end": 182,
+      "side": "new",
+      "quote": "    crate::secrets::save_secrets(&config);",
+      "title": "Config and keychain modules now depend on each other",
+      "description": "`config` calls into `secrets` here, while the new `secrets` module's `load_secrets`, `save_secrets`, and `sanitize_config` APIs take `super::config::AppConfig`, creating a direct module cycle. This couples the keychain adapter to the full persisted config schema and makes either side harder to change or isolate. Move the secret fields through a small secrets-owned value type or other one-way boundary so config can orchestrate persistence without secrets importing the config module.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "architecture",
+      "reviewer": "architecture",
+      "scope": "in_diff",
+      "fingerprint": "1cf241825032da70ee142976301d3477866c6d07587c5cb7e8a303e8a45394b7",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/google_drive.rs",
+      "line_start": 101,
+      "line_end": 109,
+      "side": "new",
+      "quote": "    // Verify state parameter matches to prevent CSRF attacks\n    let callback_state = callback_url\n        .query_pairs()\n        .find(|(k, _)| k == \"state\")\n        .map(|(_, v)| v.to_string())\n        .ok_or(\"No state parameter in OAuth callback\")?;\n\n    if callback_state != state {\n        return Err(\"OAuth state mismatch \u2014 possible CSRF attack\".to_string());",
+      "title": "OAuth state validation has no regression tests",
+      "description": "The callback now rejects missing or mismatched OAuth state, but the existing Google Drive tests do not cover the callback validation. This is the security check that distinguishes the current authorization response from a forged callback; a regression that accepts a mismatched state or rejects a valid state would go unnoticed. Extract the callback parsing/validation into a testable helper and cover matching, missing, and mismatched state values.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "ac601a2dd5163a7dafc51bebec5c162816e82c81d52240b86868334e63e6b15f",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/secrets.rs",
+      "line_start": 36,
+      "line_end": 42,
+      "side": "new",
+      "quote": "fn write_vault(vault: &Vault) {\n    let Ok(e) = entry() else { return };\n    let json = serde_json::to_string(vault).unwrap_or_default();\n    if let Err(err) = e.set_password(&json) {\n        log::error!(\"[secrets] Failed to write keychain: {err}\");\n    }\n}",
+      "title": "A keychain write failure is reported as a successful config save",
+      "description": "If the OS rejects the keychain entry or password write, this function only logs and returns; `save_config` then sanitizes the config and writes it without the credentials, while still returning success. A user saving settings during such a keychain failure loses the credentials after restart and receives no failure from the save operation.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "25a8c32a2c5b707edcb09cd3371e6095a35c3769f2ce980850c96dccbb91dcb6",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/WebcamBubble.svelte",
+      "line_start": 20,
+      "line_end": 24,
+      "side": "new",
+      "quote": "\tfunction togglePosition() {\n\t\tappState.config.preferences.webcam_position =\n\t\t\tposition === 'bottom-left' ? 'bottom-right' : 'bottom-left';\n\t\tappState.saveConfig();\n\t}",
+      "title": "Webcam bubble component logic has no component test",
+      "description": "PROJECT_RULES.md R-16 says: \"Every new public function, command, or component with logic must have a test in the same change.\" This new component owns the position toggle and its config persistence, but the changed tests cover only `computeWebcamBubbleRect` and blob storage; none exercises the component or toggle. Add a component test for switching positions and saving the preference. Verified with `rg -n 'WebcamBubble|togglePosition' src`; references occur in the route, component, and recorder helper tests, with no component test.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "44c9760840e938f37cd3e5e7ce06bc9d2b6c7fefbc24ca008198c9e1cf6b58ae",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 95,
+      "line_end": 153,
+      "side": "new",
+      "quote": "\t\t// Determine video tracks: use canvas compositor if webcam is active\n\t\tlet videoTracks: MediaStreamTrack[];\n\n\t\tif (appState.webcamStream && screenStream) {\n\t\t\t// Set up canvas compositor to overlay webcam onto screen capture\n\t\t\tconst screenTrack = screenStream.getVideoTracks()[0];\n\t\t\tconst settings = screenTrack.getSettings();\n\t\t\tconst canvasW = settings.width || 1920;\n\t\t\tconst canvasH = settings.height || 1080;\n\n\t\t\tcompositorCanvas = document.createElement('canvas');\n\t\t\tcompositorCanvas.width = canvasW;\n\t\t\tcompositorCanvas.height = canvasH;\n\t\t\tcompositorCtx = compositorCanvas.getContext('2d', { alpha: false, desynchronized: true });\n\t\t\tif (!compositorCtx) {\n\t\t\t\tthrow new Error('Failed to create 2D canvas context for webcam compositor');\n\t\t\t}\n\n\t\t\t// Hidden video elements to draw from\n\t\t\tscreenVideoEl = document.createElement('video');\n\t\t\tscreenVideoEl.srcObject = screenStream;\n\t\t\tscreenVideoEl.muted = true;\n\t\t\tawait screenVideoEl.play();\n\t\t\tcompositorCanvas.width = screenVideoEl.videoWidth || canvasW;\n\t\t\tcompositorCanvas.height = screenVideoEl.videoHeight || canvasH;\n\n\t\t\t// Cap compositor resolution \u2014 recording bitrate (2.5Mbps) is ~1080p quality,\n\t\t\t// so compositing at native 4K/Retina resolution wastes CPU\n\t\t\tconst MAX_COMPOSITOR_WIDTH = 1920;\n\t\t\tconst MAX_COMPOSITOR_HEIGHT = 1080;\n\t\t\tconst scale = Math.min(MAX_COMPOSITOR_WIDTH / compositorCanvas.width, MAX_COMPOSITOR_HEIGHT / compositorCanvas.height, 1);\n\t\t\tif (scale < 1) {\n\t\t\t\tcompositorCanvas.width = Math.round(compositorCanvas.width * scale);\n\t\t\t\tcompositorCanvas.height = Math.round(compositorCanvas.height * scale);\n\t\t\t\tlogger.info('record', `Compositor downscaled to ${compositorCanvas.width}x${compositorCanvas.height}`);\n\t\t\t}\n\n\t\t\twebcamVideoEl = document.createElement('video');\n\t\t\twebcamVideoEl.srcObject = appState.webcamStream;\n\t\t\twebcamVideoEl.muted = true;\n\t\t\tawait webcamVideoEl.play();\n\n\t\t\t// Share the decoded video element with WebcamBubble to avoid dual decode\n\t\t\tappState.webcamVideoEl = webcamVideoEl;\n\n\t\t\tstartCompositorLoop();\n\n\t\t\tif (!('captureStream' in compositorCanvas)) {\n\t\t\t\tlogger.warn('record', 'captureStream not available \u2014 recording without webcam overlay');\n\t\t\t\tvideoTracks = screenStream.getVideoTracks();\n\t\t\t} else {\n\t\t\t\tconst canvasStream = compositorCanvas.captureStream(30);\n\t\t\t\tvideoTracks = canvasStream.getVideoTracks();\n\t\t\t\tlogger.info('record', `Compositor: ${canvasW}x${canvasH} with webcam overlay`);\n\t\t\t}\n\t\t} else {\n\t\t\tif (!screenStream) throw new Error('Screen capture was lost');\n\t\t\tvideoTracks = screenStream.getVideoTracks();\n\t\t}",
+      "title": "startRecording now mixes compositor setup into a long orchestration function",
+      "description": "The new webcam branch adds canvas creation and resizing, hidden video setup, preview sharing, compositor startup, and captureStream fallback directly into startRecording. That function now spans about 170 lines while still handling permission acquisition and MediaRecorder setup, so changing compositor behavior requires reasoning through the full recording lifecycle and its shared cleanup state. Move the compositor setup into a focused helper that returns the selected video tracks, leaving startRecording to orchestrate capture and recorder setup.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "ebe846298111e0a99144acaf5b25fde4dd9abf6ab51da59212a2d10835a5873a",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 140,
+      "line_end": 148,
+      "side": "new",
+      "quote": "\t\t\tstartCompositorLoop();\n\n\t\t\tif (!('captureStream' in compositorCanvas)) {\n\t\t\t\tlogger.warn('record', 'captureStream not available \u2014 recording without webcam overlay');\n\t\t\t\tvideoTracks = screenStream.getVideoTracks();\n\t\t\t} else {\n\t\t\t\tconst canvasStream = compositorCanvas.captureStream(30);\n\t\t\t\tvideoTracks = canvasStream.getVideoTracks();\n\t\t\t\tlogger.info('record', `Compositor: ${canvasW}x${canvasH} with webcam overlay`);",
+      "title": "Webcam recording compositor has no behavioral coverage",
+      "description": "The added recorder tests exercise only the pure bubble-rectangle calculation; none exercises the new recording path that draws the screen and webcam into a canvas, captures its stream, or falls back when captureStream is unavailable. A regression that records a blank screen, omits the webcam, or chooses the wrong video tracks would still pass, even though compositing is the central new recording behavior. Add focused tests around the stream/compositor path, including the fallback and pause/resume cleanup behavior.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "73bb89a41b5876b6e2815ef17a8bc0e88d4884a4cb7a9aae08799ccf6c607997",
+      "also_raised_by": [
+        "correctness"
+      ]
+    }
+  ]
+}

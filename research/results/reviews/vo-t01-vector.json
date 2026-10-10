@@ -1,0 +1,270 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 8
+      },
+      {
+        "reviewer": "language",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 3,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 104,
+      "line_end": 117,
+      "side": "new",
+      "quote": "MODEL_REGISTRY = {\n    # Whisper variants (transcription)\n    \"whisper-medium\": {\n        \"repo_id\": \"mlx-community/whisper-medium-mlx\",\n        \"display_name\": \"Whisper Medium\",\n        \"category\": \"transcription\",\n        \"recommended\": False,\n    },\n    \"whisper-large-v3-turbo\": {\n        \"repo_id\": \"mlx-community/whisper-large-v3-turbo\",\n        \"display_name\": \"Whisper Large v3 Turbo\",\n        \"category\": \"transcription\",\n        \"recommended\": True,\n    },",
+      "title": "Whisper model identity is split across two registries",
+      "description": "The server registry now owns the names and Hugging Face repo IDs exposed by model status and download, while tts.py separately defines the same Whisper name-to-repo mapping for inference. A model added to the API registry without a matching tts.py entry will be offered and downloadable, but transcribe() falls back to treating the model name itself as the repo ID and cannot load the registered repo. Keep the catalog in one sidecar module and have both the server endpoints and inference code read its canonical mapping.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "architecture",
+      "reviewer": "architecture",
+      "scope": "in_diff",
+      "fingerprint": "8543ae213947453e22094e2e7459e4cb1ee4bb03b625521d68acba0ebb31b2fc",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 716,
+      "line_end": 716,
+      "side": "new",
+      "quote": "async def transcribe(file: UploadFile = File(...), model_name: str = Form(None)):",
+      "title": "Keep the modified Python handler fully typed",
+      "description": "PROJECT_RULES.md R-12 says: \"Python functions must carry type hints on parameters and return values\". The changed handler signature adds a typed model parameter but still omits a return type annotation, so the modified function does not meet the stated rule. Add the response type. Verification: `git diff HEAD~1 HEAD -- src-tauri/sidecar/server.py` shows this signature changed; `git show HEAD:PROJECT_RULES.md` confirms R-12.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "74a964759e19245926bdc2c8a35998e26b670217492d04280447f559aeb34b81",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 750,
+      "line_end": 750,
+      "side": "new",
+      "quote": "    model_name = request.get(\"model_name\")",
+      "title": "Read transcription model from a raw request dictionary",
+      "description": "PROJECT_RULES.md R-11 says: \"Request bodies and query parameters in the sidecar server must be declared as typed models or typed parameters; handlers must not read raw untyped dictionaries from a request.\" This new field read extends the `/transcribe-path` raw-dictionary request handling; declare a typed request model or parameter instead. Verification: `git diff HEAD~1 HEAD -- src-tauri/sidecar/server.py` shows this line was added, and `git show HEAD:PROJECT_RULES.md` confirms R-11.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "76760e55e36ff8243551528eb14195f1053b3402aa542f585e3df3b4660cdeb8",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 1147,
+      "line_end": 1148,
+      "side": "new",
+      "quote": "@app.delete(\"/models/{model_name}\")\nasync def delete_model(model_name: str):",
+      "title": "Add endpoint coverage for model deletion",
+      "description": "PROJECT_RULES.md R-16 says: \"Every new public function, command, or component with logic must have a test in the same change\". This new public deletion endpoint has no corresponding endpoint test in the changed `test_server_integration.py`; the added tests there cover registry values and aliases only. Add tests for successful deletion and its not-found/error behavior. Verification: `git diff HEAD~1 HEAD -- src-tauri/sidecar/test_server_integration.py` contains no deletion endpoint test; `git show HEAD:PROJECT_RULES.md` confirms R-16.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "7a4ddccd3e55db527499b905ea66eff7b9574c9c08b69e20284b4b1bdba20df7",
+      "also_raised_by": [
+        "tests"
+      ]
+    },
+    {
+      "file": "src-tauri/sidecar/test_tts.py",
+      "line_start": 363,
+      "line_end": 367,
+      "side": "new",
+      "quote": "with patch(\"mlx_audio.stt.utils.load_model\", return_value=mock_model):\n                from tts import transcribe\n\n                transcribe(\"/tmp/fake-audio.wav\", \"/tmp/models\", model_name=\"whisper-medium\")\n                assert tts._whisper_model_name == \"whisper-medium\"",
+      "title": "Transcription test does not prove the selected model is loaded",
+      "description": "This test only checks that the requested name is copied into the global field. It would still pass if transcribe loaded the default Whisper repo while recording \"whisper-medium\" as active, so it does not guard the per-request model selection behavior. Assert that the loader receives the repo mapped from the requested model (and, if practical, that the selected model handles transcription).",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "1392dd7d6ec1300adcc95baa15ec573c7662fae12858c9d73c6786eb93abd325",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/tts.py",
+      "line_start": 161,
+      "line_end": 161,
+      "side": "new",
+      "quote": "    repo_id = WHISPER_MODELS.get(model_name, model_name)",
+      "title": "[LLM03] Unknown model names reach the Hugging Face loader",
+      "description": "The new /transcribe and /transcribe-path handlers accept model_name from request data and pass it here. Because unknown names fall back to themselves, any caller able to reach the local sidecar can supply an arbitrary Hugging Face repo ID; load_stt_model(repo_id) then fetches and loads model artifacts outside the named-model registry. Reject values not present in WHISPER_MODELS before they reach the loader so requests cannot introduce an unreviewed model source.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "security",
+      "reviewer": "security",
+      "scope": "in_diff",
+      "fingerprint": "57befa7a13e66eb2526e2d0ea068a330defdfeffd49901454200c7bc50e7f8bd",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/models.rs",
+      "line_start": 142,
+      "line_end": 145,
+      "side": "new",
+      "quote": "pub async fn delete_model(\n    app: tauri::AppHandle,\n    model: String,\n) -> Result<serde_json::Value, String> {",
+      "title": "Add a test for the new Tauri deletion command",
+      "description": "PROJECT_RULES.md R-16 says: \"Every new public function, command, or component with logic must have a test in the same change\". This new Tauri command performs request construction, status handling, and response parsing, but the change adds no test for the command itself. Add command-level coverage for successful and failed sidecar responses. Verification: `git diff HEAD~1 HEAD -- src-tauri/src/models.rs src-tauri/src` shows no test for this command; `git show HEAD:PROJECT_RULES.md` confirms R-16.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "b32cfea2bffed13aead2605803d65d80367c11f13f0135f3643572eed6876d04",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/models.rs",
+      "line_start": 147,
+      "line_end": 147,
+      "side": "new",
+      "quote": "    let url = format!(\"http://127.0.0.1:{}/models/{}\", port, model);",
+      "title": "Validate the model identifier before building the URL",
+      "description": "PROJECT_RULES.md R-07 says: \"Tauri commands must validate every path, URL, and identifier received from the frontend before using it, and must not build file paths from unchecked input.\" The new command interpolates the frontend-provided `model` directly into a URL path without checking it against supported model identifiers first. Validate the identifier before constructing the URL. Verification: `git diff HEAD~1 HEAD -- src-tauri/src/models.rs` shows the new interpolation, and the handler contains no prior validation; `git show HEAD:PROJECT_RULES.md` confirms R-07.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "6b9048c5d7f5bcbc5f80dae33da973d0138b3d585f3dd2027877963a099c2233",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/voicebox.test.ts",
+      "line_start": 140,
+      "line_end": 140,
+      "side": "new",
+      "quote": "\t\t\tconst categories = result.map((m: any) => m.category);",
+      "title": "Avoid explicit any in the model status test",
+      "description": "PROJECT_RULES.md R-01 says: \"TypeScript code must compile under `strict` mode without `any`, `@ts-ignore`, or non-null assertions (`!`) unless a comment on the same line gives the reason.\" This new `any` annotation has no explanatory comment and type information is available through `VoiceboxModelStatus`; remove the cast/annotation and keep the test typed. Verification: `git diff HEAD~1 HEAD -- src/lib/voicebox.test.ts` shows the added `any`; `tsconfig.json` enables `strict`, and the project hook runs `pnpm check` but has no rule that bans explicit `any`.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "954259dfceef4cf66919e2b5aace9d28cf65a0c1aca722dfe4683f8047695388",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/routes/(app)/create-voice/+page.svelte",
+      "line_start": 89,
+      "line_end": 94,
+      "side": "new",
+      "quote": "\t\t\tconst requiredModels = [appState.config.whisper_model];\n\t\t\tif (appState.config.local_tts_mode === 'vc') {\n\t\t\t\trequiredModels.push('cosyvoice3-0.5B');\n\t\t\t} else {\n\t\t\t\trequiredModels.push('qwen-tts-1.7B');\n\t\t\t}",
+      "title": "Repeated local model requirement policy",
+      "description": "The mode-to-required-model mapping is repeated in this prerequisite check, downloadModels, the status markup, and Settings. If the required model for a mode changes, these copies can drift, causing the wizard to advance without the right models or the Settings button to send users to setup unnecessarily. Put the mapping in one shared helper that accepts the mode and Whisper selection, then use it in both screens and the wizard status rendering.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "c3540b4a3ae3ddb6bf8e321639c7099dd643ab83ed0dc3183cb373db560a123a",
+      "also_raised_by": [
+        "correctness"
+      ]
+    },
+    {
+      "file": "src/routes/(app)/models/+page.svelte",
+      "line_start": 1,
+      "line_end": 6,
+      "side": "new",
+      "quote": "<script lang=\"ts\">\n\timport { goto } from '$app/navigation';\n\timport { appState } from '$lib/state.svelte';\n\timport { logger } from '$lib/logger';\n\timport { VoiceboxClient, type VoiceboxModelStatus } from '$lib/voicebox';\n\timport { onMount } from 'svelte';",
+      "title": "Add coverage for the Models page logic",
+      "description": "PROJECT_RULES.md R-16 says: \"Every new public function, command, or component with logic must have a test in the same change\". This newly added page implements model loading, download, selection, and deletion behavior, but the change adds no component test for it. Add a test covering the page's model actions and state transitions. Verification: `git diff HEAD~1 HEAD -- 'src/routes/(app)/models/+page.svelte' src` shows no test for this component; `git show HEAD:PROJECT_RULES.md` confirms R-16.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "d20c44d43a081c0541a2fbf619d64178dd4a01581785ba208c7bc6b0031ef74c",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/routes/(app)/models/+page.svelte",
+      "line_start": 170,
+      "line_end": 195,
+      "side": "new",
+      "quote": "\t\t\t\t\t\t\t{#if model.downloaded}\n\t\t\t\t\t\t\t\t{#if confirmingDelete === model.model_name}\n\t\t\t\t\t\t\t\t\t<button\n\t\t\t\t\t\t\t\t\t\tclass=\"small-btn danger\"\n\t\t\t\t\t\t\t\t\t\tonclick={() => handleDeleteModel(model.model_name)}\n\t\t\t\t\t\t\t\t\t\tdisabled={deletingModel === model.model_name}\n\t\t\t\t\t\t\t\t\t>\n\t\t\t\t\t\t\t\t\t\t{deletingModel === model.model_name ? 'Deleting...' : 'Confirm'}\n\t\t\t\t\t\t\t\t\t</button>\n\t\t\t\t\t\t\t\t\t<button class=\"small-btn\" onclick={() => (confirmingDelete = null)}>Cancel</button>\n\t\t\t\t\t\t\t\t{:else}\n\t\t\t\t\t\t\t\t\t<button class=\"small-btn danger-outline\" onclick={() => (confirmingDelete = model.model_name)}>\n\t\t\t\t\t\t\t\t\t\tDelete\n\t\t\t\t\t\t\t\t\t</button>\n\t\t\t\t\t\t\t\t{/if}\n\t\t\t\t\t\t\t{:else if downloadingModel === model.model_name}\n\t\t\t\t\t\t\t\t<span class=\"download-status\">{downloadProgress}</span>\n\t\t\t\t\t\t\t{:else}\n\t\t\t\t\t\t\t\t<button\n\t\t\t\t\t\t\t\t\tclass=\"small-btn accent\"\n\t\t\t\t\t\t\t\t\tonclick={() => handleDownloadModel(model.model_name)}\n\t\t\t\t\t\t\t\t\tdisabled={downloadingModel !== null}\n\t\t\t\t\t\t\t\t>\n\t\t\t\t\t\t\t\t\tDownload\n\t\t\t\t\t\t\t\t</button>\n\t\t\t\t\t\t\t{/if}",
+      "title": "Repeated model action markup",
+      "description": "The download and delete action flow for model rows is copied into all three category sections, with the transcription section adding only its model-selection control. Any change to confirm/cancel, disabled states, or download progress must be made consistently in each copy. Render the category sections from one shared model-row block or component and make transcription selection an optional control.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "b70d94c69ae2db937c1febc1066a39ac95c7a09d589b7364ca233709ef1f28dc",
+      "also_raised_by": []
+    }
+  ]
+}
