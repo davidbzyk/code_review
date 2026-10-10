@@ -99,6 +99,35 @@ def test_run_review_sh_skips_a_change_that_only_touches_the_tool(workdir, tmp_pa
     assert "nothing to review" in done.stdout
 
 
+def test_run_review_sh_skips_files_marked_generated_or_vendored(workdir, tmp_path):
+    """Snapshots and generated files are marked in .gitattributes, as GitHub collapses them."""
+    bundle.install(workdir)
+    (workdir / ".gitattributes").write_text(
+        "research/** linguist-vendored\nbuild/** linguist-generated=true\n"
+    )
+    git = ["git", "-C", str(workdir), "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run([*git, "add", "-A"], check=True, capture_output=True)
+    subprocess.run([*git, "commit", "-q", "-m", "install"], check=True, capture_output=True)
+    subprocess.run([*git, "tag", "installed"], check=True, capture_output=True)
+    for rel in ("research/cases/snap.py", "build/out.py"):
+        (workdir / rel).parent.mkdir(parents=True, exist_ok=True)
+        (workdir / rel).write_text("x = 1\n")
+    subprocess.run([*git, "add", "-A"], check=True, capture_output=True)
+    subprocess.run([*git, "commit", "-q", "-m", "data"], check=True, capture_output=True)
+    env = {"PATH": os.environ["PATH"], "HOME": str(tmp_path), "RUNNER_TEMP": str(tmp_path / "rt"),
+           "GITHUB_WORKSPACE": str(workdir), "CR_BASE": "installed", "CR_HEAD": "HEAD"}  # fmt: skip
+    done = subprocess.run(["bash", str(workdir / ".code-review" / "run-review.sh")], env=env,
+                          capture_output=True, text=True)  # fmt: skip
+    assert done.returncode == 0, done.stderr
+    assert "nothing to review" in done.stdout
+    (workdir / "src.py").write_text("y = 2\n")  # an unmarked file is still reviewed
+    subprocess.run([*git, "add", "-A"], check=True, capture_output=True)
+    subprocess.run([*git, "commit", "-q", "-m", "code"], check=True, capture_output=True)
+    done = subprocess.run(["bash", str(workdir / ".code-review" / "run-review.sh")], env=env,
+                          capture_output=True, text=True)  # fmt: skip
+    assert "nothing to review" not in done.stdout
+
+
 def test_the_action_lets_codex_sandbox_before_the_review():
     text = (ROOT / "action" / "action.yml").read_text()
     allow = text.index("kernel.apparmor_restrict_unprivileged_userns=0")
