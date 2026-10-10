@@ -141,6 +141,17 @@ def test_every_page_of_threads_is_read_so_the_newest_are_never_dropped():
     assert len(history.our_threads(history.thread_nodes(response), "github-actions[bot]")) == 1
 
 
+def test_history_past_the_page_cap_is_unknown_not_clean():
+    """Stopping at the cap with pages left must not read as a complete, settled history."""
+
+    def endless(method, url, token, body):
+        threads = {"nodes": [], "pageInfo": {"hasNextPage": True, "endCursor": "more"}}
+        return {"data": {"repository": {"pullRequest": {"reviewThreads": threads}}}}
+
+    assert history.fetch(endless, "o/r", 7, "t").get("errors")
+    assert history.open_count(endless, "o/r", 7, "t") is None
+
+
 def test_findings_posted_in_the_review_body_reach_the_history_too():
     import test_github_post as post
 

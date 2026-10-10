@@ -81,6 +81,8 @@ def fetch(request: Callable, repo: str, pr: int, token: str, api: str = API) -> 
         if not info.get("hasNextPage") or not info.get("endCursor"):
             break
         after = info["endCursor"]
+    else:  # pages left at the cap: a partial history must not read as a settled one
+        return {"errors": [{"message": f"more than {MAX_PAGES} pages of review threads"}]}
     return {"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": nodes}}}}}
 
 
