@@ -56,7 +56,7 @@ line-length = 100
 target-version = "py312"
 # A vendored copy of general-environments' OKF tool, kept byte-identical to its source.
 # Skill references hold example code that is content, not code to format.
-extend-exclude = ["src/review_core/context/okf_tool", "*.md"]
+extend-exclude = ["src/review_core/context/okf_tool", "*.md", "research"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]

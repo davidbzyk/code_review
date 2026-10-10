@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 3
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 3
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "language",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 4,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/src/commands/recording.rs",
+      "line_start": 5,
+      "line_end": 14,
+      "side": "new",
+      "quote": "/// Validate that a session_id contains only safe characters (alphanumeric, hyphens, underscores).\nfn validate_session_id(session_id: &str) -> Result<(), String> {\n    if session_id.is_empty() {\n        return Err(\"session_id must not be empty\".to_string());\n    }\n    if !session_id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {\n        return Err(\"session_id contains invalid characters (only alphanumeric, hyphens, and underscores allowed)\".to_string());\n    }\n    Ok(())\n}",
+      "title": "Session ID validation has no regression tests",
+      "description": "This new guard protects the filesystem paths used by both recording commands, but there are no automated tests in the repository and none are added here. A test of safe IDs plus empty IDs and traversal/separator characters would prevent a future change from removing or weakening the path-safety check and allowing recording writes outside the session directory.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "6bacd1b9779f4987776f57e6154d27bfeaba05c2951d49f89ab0a766002af686",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/config.rs",
+      "line_start": 119,
+      "line_end": 119,
+      "side": "new",
+      "quote": "    // Strip secrets \u2014 only sync preferences and voice names",
+      "title": "Comment omits fields that are also synced",
+      "description": "This comment says the static config contains only preferences and voice names, but the object below also includes output_dir, Google Drive email, and connected status. That inaccurate summary can mislead future changes to the sync boundary; remove this duplicate comment or align it with the actual fields (the function doc comment above already describes the broader scope).",
+      "severity": "P3",
+      "confidence": 75,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "5e0fc4d910cb6d0775f740a61c0e1d59ac89304b1af6cfe1e4f47cca03900a1c",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/google_drive.rs",
+      "line_start": 77,
+      "line_end": 77,
+      "side": "new",
+      "quote": "                std::thread::sleep(Duration::from_millis(200));",
+      "title": "Synchronous sleep blocks an async executor worker",
+      "description": "google_drive_connect is an async Tauri command, but its callback polling loop calls std::thread::sleep every 200 ms and can repeat for the full 120-second timeout. Each sleep blocks the Tokio worker running this command, starving other async work on that worker during Drive sign-in. Use an async listener/timeout or move the blocking accept loop to a blocking task.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "8d25925031031c31d486e096fecf218016bae02024a848586e76ce5efc5b6a0c",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 2,
+      "line_end": 2,
+      "side": "new",
+      "quote": "import { isTauri } from './state.svelte';",
+      "title": "Recorder now depends on the global state module for runtime detection",
+      "description": "The recorder is a reusable capture module, but importing this helper pulls in the AppState module and its reactive singleton just to distinguish Tauri from browser mode. That couples recording infrastructure to UI state and makes the dependency run from the recorder into the application store. Move `isTauri` to a small runtime/environment utility and have both the recorder and routes import it there.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "architecture",
+      "reviewer": "architecture",
+      "scope": "in_diff",
+      "fingerprint": "1ab36e8d72aac3806308ec7b9ca0fec8d4790af0cd7b33c5c21df08c8dcb433c",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 81,
+      "line_end": 85,
+      "side": "new",
+      "quote": "\t\t\t\t\tconst bytes = new Uint8Array(buffer);\n\t\t\t\t\tawait tauriInvoke('save_recording_chunk', {\n\t\t\t\t\t\tsessionId,\n\t\t\t\t\t\tchunk: bytes,\n\t\t\t\t\t\tchunkIndex: chunkIndex++",
+      "title": "Recording chunks fail to deserialize when passed as nested Uint8Array",
+      "description": "In Tauri mode each chunk is now a Uint8Array nested inside the invoke argument object, while the Rust command expects `chunk: Vec<u8>`. Tauri serializes nested typed arrays as numeric-keyed objects, which serde rejects as a map instead of a byte sequence; each save call rejects and the recording cannot be finalized with its chunks. The former `Array.from(...)` produced the sequence the command accepts.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "0a691cb11c51256761b9db1b685c0822ee3d238717eb3929be2b3c5f16c315d0",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/routes/+page.svelte",
+      "line_start": 53,
+      "line_end": 54,
+      "side": "new",
+      "quote": "\t\t\t\tlisten('recording-stop', () => handleStop());\n\t\t\t\tlisten('recording-cancel', () => handleCancel());",
+      "title": "Widget listeners outlive the home route",
+      "description": "These Tauri listeners return unlisten callbacks, but the promises are discarded and no cleanup is registered. Navigating to preview and returning to record leaves the old listeners active; the next widget stop invokes multiple handlers against the shared recorder, causing overlapping stop/finalize attempts and potentially failing or hanging the recording flow. Retain and call both unlisten callbacks when the route is torn down or the recording ends.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "a8104017ac2683314bd0b8ffc98cc5d65898061b48c5735028ec2ac453e13928",
+      "also_raised_by": [
+        "compliance",
+        "correctness",
+        "tests"
+      ]
+    },
+    {
+      "file": "src/routes/preview/+page.svelte",
+      "line_start": 383,
+      "line_end": 396,
+      "side": "new",
+      "quote": "\t\t\t\t// Proactively refresh if token is expired or expiring soon\n\t\t\t\tconst now = Math.floor(Date.now() / 1000);\n\t\t\t\tif (appState.config.google_drive.expires_at > 0 && now >= appState.config.google_drive.expires_at) {\n\t\t\t\t\tlogger.info('drive', 'Token expired, refreshing proactively...');\n\t\t\t\t\ttoken = await refreshDriveToken();\n\t\t\t\t}\n\n\t\t\t\ttry {\n\t\t\t\t\tdriveLink = await driveUploadWithToken(blob, token);\n\t\t\t\t} catch (err: any) {\n\t\t\t\t\tif (err?.status === 401) {\n\t\t\t\t\t\t// Token expired \u2014 refresh and retry\n\t\t\t\t\t\ttoken = await refreshDriveToken();\n\t\t\t\t\t\tdriveLink = await driveUploadWithToken(blob, token);",
+      "title": "Drive token refresh paths have no regression coverage",
+      "description": "The change adds expiry-based refresh and a 401 refresh-and-retry path for browser uploads, but the repository contains no automated test files and this change adds none. A regression in expiry comparison, refreshed-token persistence, or retry/error handling could leave connected users unable to upload; cover expired and unexpired tokens, a 401 retry, and refresh failure with a controlled clock and mocked HTTP boundary.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "cb91c1292785f9882108e92403cc6579c85b24964c603af8c7c07622232312b1",
+      "also_raised_by": [
+        "correctness"
+      ]
+    },
+    {
+      "file": "src/routes/widget/+page.svelte",
+      "line_start": 21,
+      "line_end": 24,
+      "side": "new",
+      "quote": "\t\t\tunlistenPromise = listen<string>('widget-voice-name', (event) => {\n\t\t\t\tvoiceName = event.payload;\n\t\t\t});\n\t\t})();",
+      "title": "Ensure widget listener cleanup handles late registration",
+      "description": "R-04 in PROJECT_RULES.md says: \"Any $effect, event listener, timer, MediaRecorder, or media stream created by a component or module must be released in a cleanup path (effect return, onDestroy, or an explicit stop function).\" If the component is destroyed before the async import and listen registration finish, cleanup at line 28 sees null and returns; registration then completes without any path left to call its unlisten function. Keep the registration promise coordinated with cleanup so this listener is released even when setup finishes late.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "84db08c83bf6f8878be280d3834cb8e125cd0ac2a9ed88d1e8787114bea5ae73",
+      "also_raised_by": []
+    }
+  ]
+}

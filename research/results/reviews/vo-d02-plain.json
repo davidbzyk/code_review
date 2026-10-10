@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "language",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 1,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/src/config.rs",
+      "line_start": 97,
+      "line_end": 100,
+      "side": "new",
+      "quote": "        let config = read_static_config().unwrap_or_default();\n        let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;\n        fs::write(&path, json).map_err(|e| e.to_string())?;\n        Ok(config)",
+      "title": "Static config seeding has no regression coverage",
+      "description": "The new first-run path searches for a static config, parses it or falls back to defaults, then persists the result to app data. No tests exercise these outcomes (or the existing-config branch against the new behavior), so regressions in discovering, parsing, or persisting the seed would go unnoticed. The repository has no test files and package.json defines no test script.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "dfe23743f70de65564f4f234b1fbdccf7ad192a8d67c14a43af797e9ec8b4203",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/state.svelte.ts",
+      "line_start": 113,
+      "line_end": 113,
+      "side": "new",
+      "quote": "\t\t\t\tif (data.elevenlabs_api_key) {",
+      "title": "Browser ignores the settings file that Tauri syncs",
+      "description": "After a desktop save with an API key, `sync_to_static` deliberately writes an empty `elevenlabs_api_key` while syncing voices and preferences. A browser session with no localStorage config therefore rejects that file here and falls through to defaults, so the documented desktop-to-browser settings sync no longer loads those settings. Accepting the synced preferences while preserving any local key, or emitting a separate marker, would avoid discarding the whole file.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "6ea8a0c26deadb696814783a162443e7aa4df4f7fa71839a829505210b37787a",
+      "also_raised_by": [
+        "tests"
+      ]
+    }
+  ]
+}

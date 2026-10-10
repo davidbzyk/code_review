@@ -1,0 +1,32 @@
+{
+  "changed_lines": 24,
+  "control": false,
+  "rules_sha256": "a00c6f74ad26eae9e57d116ff1cb7047e4226bcb4e065fd90b76d0c1b7ee45c0",
+  "schema_version": 1,
+  "set": "dev",
+  "slices": [
+    {
+      "changed_lines": 24,
+      "id": "vo-d04-s01",
+      "layer": "all",
+      "paths": [
+        ".gitignore",
+        "src-tauri/capabilities/default.json",
+        "src-tauri/src/ffmpeg.rs",
+        "src/routes/preview/+page.svelte"
+      ],
+      "renames": []
+    }
+  ],
+  "slug": "vo-d04",
+  "trees": {
+    "base": {
+      "files": 42,
+      "sha256": "b922d47f248fc940dcf5cc0fda7ebf7a6ce779b52ad09887e356b4ce710add59"
+    },
+    "head": {
+      "files": 42,
+      "sha256": "c754b0c6013de5b5112d2ef2ed4c4d476a80364d1cbb6908c9902c8bcef5c60e"
+    }
+  }
+}

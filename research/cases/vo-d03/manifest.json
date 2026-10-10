@@ -1,0 +1,30 @@
+{
+  "changed_lines": 39,
+  "control": false,
+  "rules_sha256": "a00c6f74ad26eae9e57d116ff1cb7047e4226bcb4e065fd90b76d0c1b7ee45c0",
+  "schema_version": 1,
+  "set": "dev",
+  "slices": [
+    {
+      "changed_lines": 39,
+      "id": "vo-d03-s01",
+      "layer": "all",
+      "paths": [
+        "src-tauri/src/config.rs",
+        "src/routes/preview/+page.svelte"
+      ],
+      "renames": []
+    }
+  ],
+  "slug": "vo-d03",
+  "trees": {
+    "base": {
+      "files": 42,
+      "sha256": "0277422f721d72195e8837bde10af540d0d014b1f68a727e3187478597c2912c"
+    },
+    "head": {
+      "files": 42,
+      "sha256": "b922d47f248fc940dcf5cc0fda7ebf7a6ce779b52ad09887e356b4ce710add59"
+    }
+  }
+}

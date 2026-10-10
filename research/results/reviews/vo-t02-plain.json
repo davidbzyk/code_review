@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "language",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 1,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 221,
+      "line_end": 221,
+      "side": "new",
+      "quote": "        result = do_transcribe(str(temp_path), str(DATA_DIR / \"models\"))",
+      "title": "Whisper inference blocks the async server loop",
+      "description": "`do_transcribe` synchronously loads the Whisper model on first use and runs model generation before returning. Because this executes directly inside an `async def` route, the sidecar event loop cannot serve health checks or other API requests for the duration of transcription; `/transcribe-path` makes the same synchronous call. Offload this blocking inference to a worker thread, as the Qwen paths already do.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "81f835f371f5f54fef9388e5790a172b9e63f0b187ebb76a5a19f043ad2a4315",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 308,
+      "line_end": 322,
+      "side": "new",
+      "quote": "        if len(chunks) <= 1:\n            audio, sample_rate = await generate_speech(text, voice_prompt, language)\n        else:\n            logger.info(f\"Chunked generation: {len(chunks)} chunks\")\n            audio_chunks = []\n            sample_rate = None\n            for i, chunk_text in enumerate(chunks):\n                chunk_seed = i  # Deterministic per chunk\n                chunk_audio, chunk_sr = await generate_speech(\n                    chunk_text, voice_prompt, language, seed=chunk_seed\n                )\n                audio_chunks.append(chunk_audio)\n                if sample_rate is None:\n                    sample_rate = chunk_sr\n            audio = concatenate_audio_chunks(audio_chunks, sample_rate)",
+      "title": "No test exercises local speech generation",
+      "description": "The new generation path is the core local TTS flow, including model/sample preparation, the short-text and chunked synthesis branches, audio persistence, and status transitions. No tests cover `/generate`, its status or audio endpoints, and the added binary smoke script never calls `/generate`; the Rust tests only cover event serialization and sidecar helpers. Regressions that prevent output creation or leave generations in the wrong state therefore pass the available checks. Add an integration test with controlled synthesis dependencies that starts a generation, polls to completion, and verifies the returned WAV, including the chunked path and a generation failure.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "04d1063dbdacbd3fd04b6e13b2cd4bc240567dccc11530d844876d932e66ce27",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 406,
+      "line_end": 406,
+      "side": "new",
+      "quote": "                dl.download([url])",
+      "title": "OWASP A10 / CWE-918: Untrusted URL enables SSRF",
+      "description": "The create-voice screen passes its editable URL directly through the Tauri command to this endpoint, which hands it to yt-dlp without restricting the scheme, host, or resolved addresses. yt-dlp accepts generic URLs as well as YouTube links, so a crafted URL can make the desktop process request loopback, private-network, or link-local services. Restrict extraction to supported YouTube hosts/extractors and prevent requests or redirects to private and link-local addresses.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "security",
+      "reviewer": "security",
+      "scope": "in_diff",
+      "fingerprint": "8351ce696280df0bb444e802a861138399384598e790f002c3223332e2f95815",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/models.rs",
+      "line_start": 27,
+      "line_end": 28,
+      "side": "new",
+      "quote": "    let port = sidecar::ensure_running(&app).await?;\n    let url = format!(\"http://127.0.0.1:{}/models/status\", port);",
+      "title": "Duplicate unused model-status command",
+      "description": "This command repeats the `/models/status` request already implemented by `local_tts::check_model_status`, and repository search finds no caller beyond registering `check_models_downloaded` itself. Keeping both command paths duplicates sidecar startup, HTTP, and response handling, so changes to the model-status contract must be maintained in two places. Remove this unused command and keep the existing command, or extract one shared request helper if both entry points are needed.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "2e195e46541494608383149e902f32554f4c440bb063d7fd38818e7947df032e",
+      "also_raised_by": [
+        "architecture"
+      ]
+    },
+    {
+      "file": "src/lib/voicebox.ts",
+      "line_start": 59,
+      "line_end": 59,
+      "side": "new",
+      "quote": "\t\tawait this.jsonRequest('/models/download', 'POST', { model_name: modelName });",
+      "title": "Fresh local setup reports model downloads as failed and cannot advance",
+      "description": "On a fresh install, the create-voice flow awaits this call for each missing model. `/models/download` returns `text/event-stream`, but `jsonRequest` always applies `JSON.parse` to the response, so it throws after the download finishes; `downloadModels` then exits through its catch before refreshing status or advancing to voice creation. The user must restart the flow after the models are already downloaded to continue.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "29f16df06578e21ce46b9cca2192a304bbd57f57fa10ef35b93b6125b28464b9",
+      "also_raised_by": []
+    }
+  ]
+}

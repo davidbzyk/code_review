@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 3
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "language",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 0,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 585,
+      "line_end": 587,
+      "side": "new",
+      "quote": "@app.post(\"/voice-convert\")\nasync def voice_convert(request: dict):\n    \"\"\"Start voice conversion (speech-to-speech). Preserves original timing.",
+      "title": "Voice conversion pushes server.py past 1,000 lines",
+      "description": "This change grows server.py from 685 to 1,087 lines, with the new voice-conversion route adding a large second generation workflow to the existing HTTP server module. The module now combines route registration, generation lifecycle management, model handling, and conversion orchestration, making unrelated route changes harder to review and maintain. Move the voice-conversion route and its processing logic into a focused module and register that router from server.py.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "fe74c29e46055320d7071f2ea26ea99ded9d136bf7adac1f4b2f3c424dab8dbc",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 611,
+      "line_end": 611,
+      "side": "new",
+      "quote": "    async def _do_voice_convert():",
+      "title": "Voice conversion success path has no test",
+      "description": "The added HTTP tests for `/voice-convert` cover only missing fields, missing files, and path traversal; the binary smoke test exercises `/generate` (TTS) only. Nothing drives this conversion task through profile sample loading, CosyVoice inference, completion polling, and audio retrieval, so regressions that make every valid conversion fail or produce unusable output will pass the new suite. Add a controlled successful conversion integration test (stubbing model inference at the ML boundary) that verifies completion and returned audio, including duration behavior for the conversion path.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "ab75696d55f91826f3a38c00c27c39a1a68b8ac4a7e6ffd56d312f0c550dfbf2",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/test_tts.py",
+      "line_start": 136,
+      "line_end": 136,
+      "side": "new",
+      "quote": "        # Team 1 is adding a guard to remove these, so this test expects it",
+      "title": "Remove task-history comment from the test",
+      "description": "This comment records team activity rather than explaining a lasting constraint, and the guard it describes is already present in `_filter_segments`. It can mislead future maintainers into thinking the test depends on unfinished work. Delete the comment; the test and surrounding assertion already state the expected behavior.",
+      "severity": "P3",
+      "confidence": 100,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "bf17e67aec020399e9a002fd5ab90ed04efcb3686de82685fd6dd3ed27275da7",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/local_tts.rs",
+      "line_start": 378,
+      "line_end": 381,
+      "side": "new",
+      "quote": "    let body = serde_json::json!({\n        \"profile_id\": profile_id,\n        \"source_audio_path\": input_path_str,\n    });",
+      "title": "Voice conversion can end before the video when its audio track is shorter",
+      "description": "When a recording's audio track ends before its video, the pipeline has already measured the video duration but the VC request sends no duration. The sidecar therefore gets its default `original_duration` of 0 and skips the padding/truncation step, so converted audio follows the shorter extracted track and can leave the end of the final video without replacement audio. Pass the measured video duration through the VC call and request as the TTS path does.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "648df6e63f9f431fd5cee660b1d3382a1dc125e3c16971de72da3a8a51508ebf",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/state.svelte.ts",
+      "line_start": 62,
+      "line_end": 62,
+      "side": "new",
+      "quote": "\tlocal_tts_mode: string;",
+      "title": "Represent local TTS mode as a closed union",
+      "description": "The new setting has only two supported values and is represented by a Rust enum, but the frontend exposes it as any string. Invalid values and spelling mistakes therefore type-check and flow through config/UI logic, leaving the closed mode contract duplicated without frontend enforcement. Define a TypeScript union such as `'tts' | 'vc'` and use it for the setting and related UI handling.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "1a440eb0904258c48cf73426ce8f074a6c55e4d07636f77516d10cd2adb9ade9",
+      "also_raised_by": []
+    }
+  ]
+}

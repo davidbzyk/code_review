@@ -1,0 +1,42 @@
+{
+  "changed_lines": 480,
+  "control": true,
+  "rules_sha256": "a00c6f74ad26eae9e57d116ff1cb7047e4226bcb4e065fd90b76d0c1b7ee45c0",
+  "schema_version": 1,
+  "set": "test",
+  "slices": [
+    {
+      "changed_lines": 480,
+      "id": "vo-t06-s01",
+      "layer": "all",
+      "paths": [
+        "src-tauri/capabilities/default.json",
+        "src-tauri/src/config.rs",
+        "src-tauri/src/pipeline.rs",
+        "src-tauri/tauri.conf.json",
+        "src/app.html",
+        "src/lib/RegionSelector.svelte",
+        "src/lib/recorder.svelte.ts",
+        "src/lib/recorder.test.ts",
+        "src/lib/state.svelte.ts",
+        "src/routes/+page.svelte"
+      ],
+      "renames": []
+    }
+  ],
+  "slug": "vo-t06",
+  "trees": {
+    "base": {
+      "files": 57,
+      "sha256": "a8dbf0948459c3a0b217808d85bf399adb0ff2adfa7658c7779f8143ed81d297"
+    },
+    "fixed": {
+      "files": 58,
+      "sha256": "0caf863098c39c3255f1b3076fc1c7ae1a0f2d983f3acb6efcbcf5a4d4b94eed"
+    },
+    "head": {
+      "files": 58,
+      "sha256": "2c890a8dae3a9087d79d6fef9801e6498cc6aac666686ba334593f58bb2473a4"
+    }
+  }
+}

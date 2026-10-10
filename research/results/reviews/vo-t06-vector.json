@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 3
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "language",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 1,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src/lib/RegionSelector.svelte",
+      "line_start": 136,
+      "line_end": 136,
+      "side": "new",
+      "quote": "\t\t<div class=\"actions\" style=\"left:{selRect.x + selRect.width / 2}px; top:{selRect.y - 48}px;\" onmousedown={(e) => e.stopPropagation()}>",
+      "title": "Selections at the top edge hide the Record Region buttons",
+      "description": "For a selection starting within 48 CSS pixels of the overlay's top edge, this places the action bar above the viewport. The overlay has `overflow: hidden`, so the confirm and cancel buttons are clipped and the user cannot confirm that valid region without drawing a different one.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "45319aa661ed50047c99fb697ec3031c056261494397489ffeda51ac4aaf2ba6",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 98,
+      "line_end": 98,
+      "side": "new",
+      "quote": "\t\tscreenStream = await displayPromise;",
+      "title": "Canceling the picker leaves the Tauri window minimized",
+      "description": "If the user dismisses or denies the screen picker in Tauri fullscreen or region mode, this await rejects before the restore block runs. The outer catch cleans up recording state but never unminimizes the window, leaving the app hidden after a normal cancellation.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "77f5e3180ec8140f16100c275645e8f86ece1f9358c586506d5cdeb3b9d7f71a",
+      "also_raised_by": [
+        "language"
+      ]
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 238,
+      "line_end": 240,
+      "side": "new",
+      "quote": "\t\t\tif (!('captureStream' in compositorCanvas)) {\n\t\t\t\tlogger.warn('record', 'captureStream not available \u2014 recording without webcam overlay');\n\t\t\t\tvideoTracks = screenStream.getVideoTracks();",
+      "title": "Region recording falls back to the uncropped screen when canvas capture is unavailable",
+      "description": "When `captureStream` is absent, region mode takes this fallback and records the original display track. That track is the full monitor selected for the region flow, so the recording contains the whole screen instead of the chosen rectangle; the warning only mentions the webcam overlay. This affects WebKit variants where canvas capture is unavailable, which the project documents as a compatibility limitation.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "e2bc873063b779e14302d7e8d2ac5fbdcd538aab08223ee45f6fea00064b47a0",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 343,
+      "line_end": 347,
+      "side": "new",
+      "quote": "\t\t\tif (regionRect) {\n\t\t\t\tcompositorCtx.drawImage(screenVideoEl, regionRect.x, regionRect.y, regionRect.width, regionRect.height, 0, 0, w, h);\n\t\t\t} else {\n\t\t\t\tcompositorCtx.drawImage(screenVideoEl, 0, 0, w, h);\n\t\t\t}",
+      "title": "Region crop decision is duplicated across frame paths",
+      "description": "The same region-versus-full-frame branch is already used for the synchronous initial draw at lines 230\u2013234. Keeping two copies means future changes to crop rendering must be made in both the initial and ongoing frame paths, and they can drift. Extract the screen draw into one helper that both paths call.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "333f599f1dc79e01b39177b784716871e51a8d97475d5bd4fd6a6da170e2eee6",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 509,
+      "line_end": 510,
+      "side": "new",
+      "quote": "\tregionResolve = null;\n\tregionReject = null;",
+      "title": "Cleanup abandons the pending region-selection promise",
+      "description": "If the screen track ends while region selection is awaiting user input, the ended handler calls cancelRecording() and this cleanup clears regionReject without rejecting the promise that startRecording is awaiting. The ended handler changes the UI state to ready, but handleRecord remains suspended and its isStarting flag stays true, so the record button remains disabled and the start flow cannot recover.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "9884d49227cb2476d8bf32df9804194c05f5184cf78792fbede7f80628ee3d8c",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.test.ts",
+      "line_start": 132,
+      "line_end": 134,
+      "side": "new",
+      "quote": "\tit('confirmRegionSelection does not throw with no pending selection', () => {\n\t\texpect(() => confirmRegionSelection({ x: 0, y: 0, width: 100, height: 100 })).not.toThrow();\n\t});",
+      "title": "Region selection tests never exercise a pending selection",
+      "description": "This test calls confirmRegionSelection while regionResolve is null, so it only proves the idle guard does not throw; it would still pass if confirming an active selection never resolved startRecording. The new region path waits on that resolver, then uses the chosen rectangle to size and crop the compositor, but there is no test for a successful selection, cancellation, or the resulting crop coordinates. A regression in the main region-recording flow can therefore pass the added tests unnoticed.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "3929c9a0675283636ebde60ce3c8ae3f25b03794f1059e8563cb530ca56c8aed",
+      "also_raised_by": []
+    }
+  ]
+}

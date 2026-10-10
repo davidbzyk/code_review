@@ -1,0 +1,220 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 3
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "language",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 1,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 290,
+      "line_end": 299,
+      "side": "new",
+      "quote": "async def _do_generate(\n    *,\n    set_status,\n    data_dir: Path,\n    profile_id: str,\n    text: str,\n    language: str,\n    segments: list,\n    original_duration: float,\n):",
+      "title": "Type the extracted generation function",
+      "description": "PROJECT_RULES.md R-12 says: \"Python functions must carry type hints on parameters and return values, and must not use bare `except:` or `except Exception: pass`.\" This new function leaves `set_status` untyped and has no return annotation, so callers and maintainers cannot check the callback or returned tuple contract. Verification: `git show HEAD:PROJECT_RULES.md` confirmed R-12; `git show HEAD:src-tauri/sidecar/server.py | nl -ba | sed -n '290,299p'` confirmed the signature lacks those annotations.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "6fe6207fce013bc531a4df2f495b4954c8d73b4c0355e5a5356b179a90eca488",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 439,
+      "line_end": 446,
+      "side": "new",
+      "quote": "async def _do_voice_convert(\n    *,\n    set_status,\n    data_dir: Path,\n    profile_id: str,\n    source_audio_path: str,\n    original_duration: float,\n):",
+      "title": "Type the extracted voice conversion function",
+      "description": "PROJECT_RULES.md R-12 says: \"Python functions must carry type hints on parameters and return values, and must not use bare `except:` or `except Exception: pass`.\" This new function leaves `set_status` untyped and has no return annotation, so its callback and returned audio tuple contract are not checked. Verification: `git show HEAD:PROJECT_RULES.md` confirmed R-12; `git show HEAD:src-tauri/sidecar/server.py | nl -ba | sed -n '439,446p'` confirmed the signature lacks those annotations.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "compliance",
+      "reviewer": "compliance",
+      "scope": "in_diff",
+      "fingerprint": "b3e9d487cc3c8abb7176a38e5b7f75112e8de547dcbf18f5e765ebe64eb9e9d7",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 738,
+      "line_end": 748,
+      "side": "new",
+      "quote": "generate_fn = functools.partial(\n        _do_generate,\n        set_status=lambda s: _generations[gen_id].__setitem__(\"status\", s),\n        data_dir=DATA_DIR,\n        profile_id=profile_id,\n        text=text,\n        language=language,\n        segments=segments,\n        original_duration=original_duration,\n    )\n    await _generation_queue.put((gen_id, _run_generation(gen_id, generate_fn)))",
+      "title": "Cover queued generation status transitions",
+      "description": "The extraction moves progress updates into a callback passed to the queued generation function, but the sidecar integration tests only cover invalid generation requests and unknown IDs; they do not enqueue a successful or failing job and observe its status. If this callback is omitted or stops updating the record, generation can finish while clients continue polling `queued` until timeout. Add a focused queue/status test (using a controlled generation function) that verifies progress and terminal success/error states for the reworked lifecycle.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "5b2b2f40dd1ac5d9538649e9bc81b92879521080fe6ed325a747385cdcd08a11",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line_start": 40,
+      "line_end": 45,
+      "side": "new",
+      "quote": "            app.manage(local_tts::HttpClient {\n                client: reqwest::Client::builder()\n                    .pool_max_idle_per_host(5)\n                    .build()\n                    .expect(\"Failed to build HTTP client\"),\n            });",
+      "title": "Model commands bypass the shared sidecar HTTP client",
+      "description": "The new managed client is consumed by commands in local_tts.rs and by pipeline.rs, but the existing model commands in models.rs still construct a fresh reqwest client for each /models/status and /models/download call. That leaves sidecar HTTP ownership split across two patterns, so those requests bypass the registered connection pool and the per-request timeout helper. Have the model commands use the managed HttpClient and the shared timeout helper so all Rust sidecar calls follow the same boundary.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "architecture",
+      "reviewer": "architecture",
+      "scope": "in_diff",
+      "fingerprint": "b6c9f7d15771c94ef555dce1a55a8a2972f0c3ecf8491c349b6dcbeca83e9e21",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/local_tts.rs",
+      "line_start": 23,
+      "line_end": 26,
+      "side": "new",
+      "quote": "    tokio::time::timeout(std::time::Duration::from_secs(timeout_secs), future)\n        .await\n        .map_err(|_| format!(\"{context}: timed out after {timeout_secs}s\"))?\n        .map_err(|e| format!(\"{context}: {e}\"))",
+      "title": "Timeout ends before the response body is read",
+      "description": "This timeout wraps only `RequestBuilder::send()`, which returns once the response headers arrive. The shared client has no default timeout, so later body reads such as `response.bytes().await` in `get_generation_audio` (and `text()`/`json()` elsewhere) can wait indefinitely if the sidecar stalls while streaming a response. Apply the deadline through body consumption as well, or configure a request timeout that covers the complete response.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "7cd432f40f7bfb4a8a808580efb136c15c5713414465f364f987f7df58923452",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/local_tts.rs",
+      "line_start": 618,
+      "line_end": 622,
+      "side": "new",
+      "quote": "pub async fn get_generation_audio(\n    app: tauri::AppHandle,\n    generation_id: String,\n) -> Result<Vec<u8>, String> {\n    validate_generation_id(&generation_id).map_err(|e| {",
+      "title": "Add boundary coverage for generated audio fetch",
+      "description": "The new Tauri command is the only path by which the webview now retrieves generated audio, but the added frontend test only mocks the command and checks for a `blob:` URL and invocation. No test exercises this command's HTTP response handling or verifies that returned bytes are preserved, and the helper tests cover only ID validation. A regression that returns an error for a successful response, mishandles bytes, or fails to propagate a sidecar HTTP error would therefore leave the new audio flow unguarded.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "3a2c5522321eecd3e57bb6a804cf4b2d318516a2b7483046898663dd6623ed42",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/local_tts.rs",
+      "line_start": 635,
+      "line_end": 635,
+      "side": "new",
+      "quote": "    let response = send_with_timeout(http.client.get(&url).send(), 30, \"Failed to fetch audio\")",
+      "title": "Audio fetch timeout stops at response headers",
+      "description": "If the sidecar sends audio response headers and then stalls while streaming the WAV, this timeout has already completed; the following `response.bytes().await` can wait indefinitely. The shared client has no default timeout, whereas the old per-call client timeout covered reading the response body, so the new audio command can hang instead of failing after 30 seconds.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "2d5142c30774518cdbc7ff002101cd3640353b018f56a658be7be139c965ca99",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/sidecar.rs",
+      "line_start": 307,
+      "line_end": 322,
+      "side": "new",
+      "quote": "// Register the notified future BEFORE checking `starting` to avoid\n    // missing a notification between the check and the wait.\n    let notified = state.startup_done.notified();\n\n    // If a startup is already in progress, wait for it instead of restarting\n    let is_starting = { *state.starting.lock().await };\n    if is_starting {\n        log::info!(\"[sidecar] Startup in progress \u2014 waiting...\");\n        if tokio::time::timeout(\n            std::time::Duration::from_secs(HEALTH_CHECK_TIMEOUT_SECS),\n            notified,\n        )\n        .await\n        .is_err()\n        {\n            return Err(\"TTS sidecar startup timed out\".to_string());",
+      "title": "Test concurrent sidecar startup notification path",
+      "description": "This replaces the previous polling wait with notification and timeout behavior, but the modified Rust tests cover only default state and port helpers; none exercise two callers arriving during startup, startup completion/failure notification, or the timeout path. Those are the branches that ensure concurrent pipeline requests reuse one startup and receive its result, so a missed wakeup or incorrect error path could regress startup without a test failing.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "188b7c3f1de19a1b82ccd6734a9c5a5dc8bc12ae145cf116c94aa6b73052cef5",
+      "also_raised_by": [
+        "correctness"
+      ]
+    },
+    {
+      "file": "src/routes/create-voice/+page.svelte",
+      "line_start": 252,
+      "line_end": 252,
+      "side": "new",
+      "quote": "\t\tif (generatedAudioUrl) URL.revokeObjectURL(generatedAudioUrl);",
+      "title": "Generated audio URL is not released when the route unmounts",
+      "description": "This revokes the previous generated audio only when another generation starts. `getAudioUrl()` now creates a `blob:` URL for the generated WAV, but navigating away from the wizard leaves the latest URL unreleased; repeated visits can retain large audio blobs for the lifetime of the webview. Revoke the current generated URL during component teardown as well.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "06c2daa37ee4c8c5d73fd16b5a7d92f36e05d46db2778d8b9e151edfaa22ecf8",
+      "also_raised_by": []
+    }
+  ]
+}

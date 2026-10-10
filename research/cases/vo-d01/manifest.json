@@ -1,0 +1,43 @@
+{
+  "changed_lines": 183,
+  "control": false,
+  "rules_sha256": "a00c6f74ad26eae9e57d116ff1cb7047e4226bcb4e065fd90b76d0c1b7ee45c0",
+  "schema_version": 1,
+  "set": "dev",
+  "slices": [
+    {
+      "changed_lines": 183,
+      "id": "vo-d01-s01",
+      "layer": "all",
+      "paths": [
+        "src-tauri/Cargo.toml",
+        "src-tauri/src/commands/recording.rs",
+        "src-tauri/src/config.rs",
+        "src-tauri/src/ffmpeg.rs",
+        "src-tauri/src/google_drive.rs",
+        "src-tauri/src/pipeline.rs",
+        "src-tauri/tauri.conf.json",
+        "src/lib/logger.ts",
+        "src/lib/recorder.svelte.ts",
+        "src/lib/state.svelte.ts",
+        "src/routes/+layout.svelte",
+        "src/routes/+page.svelte",
+        "src/routes/preview/+page.svelte",
+        "src/routes/settings/+page.svelte",
+        "src/routes/widget/+page.svelte"
+      ],
+      "renames": []
+    }
+  ],
+  "slug": "vo-d01",
+  "trees": {
+    "base": {
+      "files": 41,
+      "sha256": "ca7be0e2f7c5d2c4f5ea63053fbe04fad9a66df2af1c4332c9af0738442da9d7"
+    },
+    "head": {
+      "files": 41,
+      "sha256": "c9740a314280bb8e040473e6c7be3326c88da7053d0847f7aecc03f10c4b3c17"
+    }
+  }
+}

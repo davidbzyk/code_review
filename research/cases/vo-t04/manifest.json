@@ -1,0 +1,55 @@
+{
+  "changed_lines": 1123,
+  "control": true,
+  "rules_sha256": "a00c6f74ad26eae9e57d116ff1cb7047e4226bcb4e065fd90b76d0c1b7ee45c0",
+  "schema_version": 1,
+  "set": "test",
+  "slices": [
+    {
+      "changed_lines": 1123,
+      "id": "vo-t04-s01",
+      "layer": "all",
+      "paths": [
+        ".github/workflows/ci.yml",
+        ".gitignore",
+        "README.md",
+        "package.json",
+        "scripts/generate-icon.py",
+        "src-tauri/Cargo.toml",
+        "src-tauri/capabilities/default.json",
+        "src-tauri/src/commands/recording.rs",
+        "src-tauri/src/config.rs",
+        "src-tauri/src/elevenlabs.rs",
+        "src-tauri/src/google_drive.rs",
+        "src-tauri/src/lib.rs",
+        "src-tauri/src/secrets.rs",
+        "src-tauri/tauri.conf.json",
+        "src/lib/WebcamBubble.svelte",
+        "src/lib/blobStore.ts",
+        "src/lib/recorder.svelte.ts",
+        "src/lib/recorder.test.ts",
+        "src/lib/state.svelte.test.ts",
+        "src/lib/state.svelte.ts",
+        "src/lib/tauri.ts",
+        "src/routes/+page.svelte",
+        "src/routes/preview/+page.svelte"
+      ],
+      "renames": []
+    }
+  ],
+  "slug": "vo-t04",
+  "trees": {
+    "base": {
+      "files": 50,
+      "sha256": "9e5a28ecf4a001b8382f68600ef48d3486b323ddc4c394ca63e1f9119f5eeb09"
+    },
+    "fixed": {
+      "files": 57,
+      "sha256": "a8dbf0948459c3a0b217808d85bf399adb0ff2adfa7658c7779f8143ed81d297"
+    },
+    "head": {
+      "files": 56,
+      "sha256": "30d86f594cf7c9cce238a2f6f58fe53fb2e9c42a3abaf51f2dda62b061bc7bbd"
+    }
+  }
+}

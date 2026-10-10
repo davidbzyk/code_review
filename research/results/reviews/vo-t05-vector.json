@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 3
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "language",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 0,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/src/ffmpeg.rs",
+      "line_start": 197,
+      "line_end": 207,
+      "side": "new",
+      "quote": "    let status = Command::new(resolve_ffmpeg_path())\n        .args(&args)\n        .output()\n        .await\n        .map_err(|e| format!(\"Failed to run ffmpeg: {e}\"))?;\n\n    if !status.status.success() {\n        let stderr = String::from_utf8_lossy(&status.stderr);\n        return Err(format!(\"ffmpeg thumbnail extraction failed: {stderr}\"));\n    }\n    Ok(())",
+      "title": "Centralize repeated ffmpeg execution handling",
+      "description": "This repeats the process launch, error conversion, and exit-status handling already used by extract_audio and the other ffmpeg operations in this module. Each new operation now has to maintain its own copy of this wrapper, so error handling can drift. Extract a shared async helper that runs the supplied arguments and accepts the operation-specific failure label, then have this function and the sibling operations use it.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "a4527f9c0dcb4934d80b14f5d96678b196faaebc3177c6df0e05f7ccd8fde2ee",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/google_drive.rs",
+      "line_start": 284,
+      "line_end": 294,
+      "side": "new",
+      "quote": "    // Update .meta.json with drive URL\n    let meta_path = Path::new(&file_path).with_extension(\"meta.json\");\n    let timestamp = crate::pipeline::chrono_timestamp();\n    if meta_path.exists() {\n        if let Ok(content) = std::fs::read_to_string(&meta_path) {\n            if let Ok(mut meta) = serde_json::from_str::<serde_json::Value>(&content) {\n                meta[\"driveUrl\"] = serde_json::Value::String(share_link.clone());\n                meta[\"uploadedAt\"] = serde_json::json!(timestamp.parse::<u64>().unwrap_or(0));\n                if let Ok(json) = serde_json::to_string_pretty(&meta) {\n                    std::fs::write(&meta_path, json).ok();\n                    log::info!(\"[drive] Updated meta.json with drive URL\");",
+      "title": "Drive metadata persistence has no tests",
+      "description": "The existing Google Drive tests cover multipart request construction, but the new sidecar update path has no test for merging the returned URL and upload time into existing recording metadata or creating the sidecar when it is absent. Regressions here can make successful uploads disappear from the Library or overwrite voice metadata; test both existing and missing sidecar cases with a controlled file fixture.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "5c07d8cc92222ee4045fbda85c627c5572e35b76ec1f8b0febc33fc90c6c30b8",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/library.rs",
+      "line_start": 49,
+      "line_end": 50,
+      "side": "new",
+      "quote": "/// Scan the output directory for recordings and return metadata for each.\n/// Scan a directory for .mp4 recordings and return metadata.",
+      "title": "Remove the duplicate scan comment",
+      "description": "These adjacent comments describe the same behavior, and both restate the `scan_recordings` function name and return shape. Keep one useful description or remove both; the duplicate adds noise without clarifying a constraint or rationale.",
+      "severity": "P3",
+      "confidence": 100,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "1d6ba91cdfb81908d167e3a6d5a6f5ca0c7a40552887d5de736ddeaab34be8de",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/library.rs",
+      "line_start": 121,
+      "line_end": 124,
+      "side": "new",
+      "quote": "fn resolve_output_dir(configured: &str) -> PathBuf {\n    let configured_path = PathBuf::from(configured);\n    if configured_path.exists() {\n        return configured_path;",
+      "title": "Pipeline and Library resolve different output directories",
+      "description": "This duplicates the output-directory policy in `pipeline.rs`, where the configured directory is used only when `create_dir_all` succeeds and otherwise recordings go to the fallback. Here, any existing configured path is used without that check. When the configured directory exists but cannot be written, the pipeline saves to the fallback while the Library scans the configured path, so recordings produced by the app are missing from the Library. Move effective-directory resolution into one shared backend helper and use it from both paths.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "architecture",
+      "reviewer": "architecture",
+      "scope": "in_diff",
+      "fingerprint": "c4d6d4378112a65ce021409bb7cc9c351fd323e3d829b6f13f4059b78ec8fba5",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/library.rs",
+      "line_start": 197,
+      "line_end": 205,
+      "side": "new",
+      "quote": "    std::fs::remove_file(&path)\n        .map_err(|e| format!(\"Failed to delete recording: {e}\"))?;\n\n    // Delete companion files (ignore errors \u2014 they may not exist)\n    let meta_path = path.with_extension(\"meta.json\");\n    std::fs::remove_file(&meta_path).ok();\n\n    let transcript_path = path.with_extension(\"txt\");\n    std::fs::remove_file(&transcript_path).ok();",
+      "title": "Recording deletion side effects are untested",
+      "description": "The added Rust tests cover path validation and scanning, but none exercise the new delete command or verify which files remain afterward. A regression could remove only the MP4 while leaving its metadata, transcript, or cached thumbnail behind, or delete an unintended file after a path-validation change. Add a temporary-directory command-level test that checks the full deletion contract and rejection behavior.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "30cb1585894c9ed1d1a3005b86241d5e06d6ce1dadadf1f820ce7cbe3ff4be6b",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/RecordingCard.svelte",
+      "line_start": 41,
+      "line_end": 41,
+      "side": "new",
+      "quote": "\t\t\tconst bytes = await tauriInvoke<number[]>('read_file_bytes', { path: thumbPath });",
+      "title": "Thumbnails fail for recordings saved in custom directories",
+      "description": "When the configured save location is outside the temp directory, Videos directory, and ~/VoiceOver, thumbnail generation succeeds but this read is rejected by the existing read_file_bytes allowlist, so every library card in that location stays on the \ud83c\udfac placeholder. The Settings page accepts an arbitrary save path, and the pipeline writes recordings there, making this reproducible for normal custom locations such as ~/Desktop/Recordings.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "8d45e43080cfbdad73edad169488ed547f87779cc43e5b014ea0d5a14bdc49d3",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/RecordingCard.svelte",
+      "line_start": 43,
+      "line_end": 43,
+      "side": "new",
+      "quote": "\t\t\tthumbnailUrl = URL.createObjectURL(blob);",
+      "title": "Revoke thumbnail object URLs when cards unmount",
+      "description": "Each visible recording card creates a blob URL for its thumbnail, but the component cleanup only disconnects the IntersectionObserver and never calls URL.revokeObjectURL. Navigating away from the library or deleting cards therefore leaves every loaded thumbnail blob retained for the lifetime of the webview; returning to the library creates another set, so memory grows with browsing and deletion.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "69bb61b3f592a2d66ccd5a5de7e6e4002614b99cea2e7f39c39d7511249f578e",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/library.svelte.ts",
+      "line_start": 28,
+      "line_end": 43,
+      "side": "new",
+      "quote": "\tsorted = $derived.by(() => {\n\t\tconst sorted = [...this.recordings];\n\t\tconst dir = this.sortDir === 'asc' ? 1 : -1;\n\t\tswitch (this.sortBy) {\n\t\t\tcase 'date':\n\t\t\t\tsorted.sort((a, b) => dir * (a.createdAt - b.createdAt));\n\t\t\t\tbreak;\n\t\t\tcase 'size':\n\t\t\t\tsorted.sort((a, b) => dir * (a.sizeBytes - b.sizeBytes));\n\t\t\t\tbreak;\n\t\t\tcase 'name':\n\t\t\t\tsorted.sort((a, b) => dir * a.filename.localeCompare(b.filename));\n\t\t\t\tbreak;\n\t\t}\n\t\treturn sorted;\n\t});",
+      "title": "Library sorting has no behavioral tests",
+      "description": "The new library state implements three sort keys and ascending/descending ordering, but the change adds no tests for this frontend state and the existing test files do not cover it. A comparator or direction regression would silently show recordings in the wrong order across the Library screen; cover each sort key and direction through the state used by the page.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "2f2d95945f565c8c07ffdd6acb6db4b04e4e706f1f175f1344263e3ccf09e4f7",
+      "also_raised_by": []
+    }
+  ]
+}

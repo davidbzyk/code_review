@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "language",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 1,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 98,
+      "line_end": 98,
+      "side": "new",
+      "quote": "\t\tscreenStream = await displayPromise;",
+      "title": "Canceling the picker leaves the Tauri window minimized",
+      "description": "In Tauri fullscreen or region mode, dismissing the OS picker rejects `displayPromise`, so execution jumps to the outer catch before the unminimize/focus block runs. The app reports the error but remains minimized, leaving the user to restore it from the dock/taskbar instead of returning to the recording screen.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "77f5e3180ec8140f16100c275645e8f86ece1f9358c586506d5cdeb3b9d7f71a",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 142,
+      "line_end": 146,
+      "side": "new",
+      "quote": "\t\t\t// Wait for user to draw a selection rectangle (resolved by confirmRegionSelection)\n\t\t\tregionRect = await new Promise<RegionRect>((resolve, reject) => {\n\t\t\t\tregionResolve = resolve;\n\t\t\t\tregionReject = reject;\n\t\t\t});",
+      "title": "Region selection and crop flow has no behavioral coverage",
+      "description": "The only added recorder tests check the capture-mode mapping and that confirm/cancel do not throw when no selection is pending. No test exercises this pending selection handoff or verifies that the chosen rectangle is applied to recorded frames. Regressions that leave the promise unresolved, fail to reject on cancel, or crop the wrong source coordinates would therefore pass the suite, breaking the new region recording flow without a test signal. Add coverage for confirming and canceling a pending selection and for the resulting crop dimensions/source rectangle at the recorder boundary.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "c39088e4f81cfd9473b8f20246fa5a996dbe2855aeea98a63d1104328040fdd5",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 508,
+      "line_end": 510,
+      "side": "new",
+      "quote": "\tregionRect = null;\n\tregionResolve = null;\n\tregionReject = null;",
+      "title": "Cleanup strands an in-flight region selection",
+      "description": "When the screen track ends while the region selector is open, its existing ended handler calls cancelRecording(), which reaches this cleanup. Clearing regionReject without invoking it leaves the Promise awaited by startRecording() pending forever; the page's isStarting flag therefore never resets, and recording cannot be started again without reloading.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "3d6ae75fd70b492f389569b21322fe35f2e8c2575afda80077fe8b817fe13373",
+      "also_raised_by": [
+        "correctness"
+      ]
+    }
+  ]
+}

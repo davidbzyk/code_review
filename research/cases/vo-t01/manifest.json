@@ -1,0 +1,50 @@
+{
+  "changed_lines": 1062,
+  "control": true,
+  "rules_sha256": "a00c6f74ad26eae9e57d116ff1cb7047e4226bcb4e065fd90b76d0c1b7ee45c0",
+  "schema_version": 1,
+  "set": "test",
+  "slices": [
+    {
+      "changed_lines": 1062,
+      "id": "vo-t01-s01",
+      "layer": "all",
+      "paths": [
+        "src-tauri/sidecar/server.py",
+        "src-tauri/sidecar/test_server_integration.py",
+        "src-tauri/sidecar/test_tts.py",
+        "src-tauri/sidecar/tts.py",
+        "src-tauri/src/commands/recording.rs",
+        "src-tauri/src/config.rs",
+        "src-tauri/src/lib.rs",
+        "src-tauri/src/local_tts.rs",
+        "src-tauri/src/models.rs",
+        "src-tauri/src/pipeline.rs",
+        "src/lib/Sidebar.svelte",
+        "src/lib/state.svelte.test.ts",
+        "src/lib/state.svelte.ts",
+        "src/lib/voicebox.test.ts",
+        "src/lib/voicebox.ts",
+        "src/routes/(app)/create-voice/+page.svelte",
+        "src/routes/(app)/models/+page.svelte",
+        "src/routes/(app)/settings/+page.svelte"
+      ],
+      "renames": []
+    }
+  ],
+  "slug": "vo-t01",
+  "trees": {
+    "base": {
+      "files": 87,
+      "sha256": "45812eee95c3ab8ea3286e213656feaccef269169a8f1c20854df90b0862bc18"
+    },
+    "fixed": {
+      "files": 90,
+      "sha256": "963e47d00310145fde1d8f19e8b81c04054df1d57e000c9d42bbfbbcd3dbfaa4"
+    },
+    "head": {
+      "files": 88,
+      "sha256": "ccea7555bdb9c15ff6bfc15ac22d614c3142f67339ab5ee565da8a77c430dbe9"
+    }
+  }
+}

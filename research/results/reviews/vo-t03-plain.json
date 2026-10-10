@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "language",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 0,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "lefthook.yml",
+      "line_start": 9,
+      "line_end": 9,
+      "side": "new",
+      "quote": "      run: .sidecar-venv/bin/python -m pytest src-tauri/sidecar/test_tts.py src-tauri/sidecar/test_chunked_tts.py -q",
+      "title": "Pre-commit sidecar tests require an unprovisioned venv",
+      "description": "This hook unconditionally invokes pytest from the repository-local .sidecar-venv, but a fresh checkout does not create that environment and the documented setup in build-sidecar.sh only installs requirements.txt, which does not include pytest. Contributors using the hook therefore cannot commit until they discover and manually provision a separate test environment.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "4c4c338f09cfdf2a7edd7912adb327b2dcf27fdb54f884136c284e574ae6e7c4",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 257,
+      "line_end": 257,
+      "side": "new",
+      "quote": "        sf.write(str(audio_path), audio, sample_rate)",
+      "title": "WAV serialization blocks the sidecar event loop",
+      "description": "_run_generation is an async task, but this synchronous write serializes the entire generated audio array on the FastAPI event-loop thread. For long recordings the disk write can stall status polling, health checks, and unrelated requests until serialization finishes; run the write in a worker thread or use an async file path.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "f565c2a424ed15a033912a54ee584058c6c478254ed07a531101eeceaf1c2d13",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 585,
+      "line_end": 586,
+      "side": "new",
+      "quote": "@app.post(\"/voice-convert\")\nasync def voice_convert(request: dict):",
+      "title": "Voice conversion pushes the sidecar server past 1,000 lines",
+      "description": "This change grows server.py from 685 to 1,087 lines, crossing the review's 1,000-line file-size threshold. The new route owns a nested conversion workflow spanning model loading, reference preparation, chunking, and output assembly. Move that workflow into a focused voice-conversion module and leave the route to validate the request and enqueue the work; this brings the server back below the threshold and keeps endpoint wiring separate from inference logic.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "a45c24b8431c24b90be9a2206d6cedf344bca7ec0d06b814719432e3ff816222",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 611,
+      "line_end": 623,
+      "side": "new",
+      "quote": "    async def _do_voice_convert():\n        import asyncio\n        import soundfile as sf\n        import mlx.core as mx\n        from mlx_audio.tts.utils import load_model\n        from mlx_audio.tts.generate import load_audio\n        from profiles import get_samples\n\n        models_dir = str(DATA_DIR / \"models\")\n\n        # Load CosyVoice3 model\n        _generations[gen_id][\"status\"] = \"loading_model\"\n        global _vc_model, _vc_model_name",
+      "title": "Keep voice conversion out of the oversized HTTP server module",
+      "description": "This change takes server.py from 685 to 1087 lines and adds the voice conversion model lifecycle and inference as a nested endpoint implementation. The HTTP module now owns routing, generation state, profile sample preparation, model loading, chunking, and audio conversion, so changes to the conversion engine are coupled to the API layer and harder to isolate. Move the conversion lifecycle into a focused sidecar module and leave the route to validate the request and enqueue that operation.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "architecture",
+      "reviewer": "architecture",
+      "scope": "in_diff",
+      "fingerprint": "5ba0df7068dbdea605209c0f507f447fd0f11bb12922f43f2072c7177850985b",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/test_server_integration.py",
+      "line_start": 124,
+      "line_end": 140,
+      "side": "new",
+      "quote": "class TestVoiceConvertEndpoint:\n    def test_missing_fields_returns_400(self, client):\n        response = client.post(\"/voice-convert\", json={})\n        assert response.status_code == 400\n\n    def test_missing_source_audio_returns_400(self, client):\n        response = client.post(\"/voice-convert\", json={\n            \"profile_id\": \"test-profile\",\n            \"source_audio_path\": \"/nonexistent/path/audio.wav\",\n        })\n        assert response.status_code == 400\n\n    def test_missing_profile_id_returns_400(self, client):\n        response = client.post(\"/voice-convert\", json={\n            \"source_audio_path\": \"/tmp/some-audio.wav\",\n        })\n        assert response.status_code == 400",
+      "title": "Voice conversion has no successful-path test",
+      "description": "The new voice-conversion endpoint is tested only with requests that return 400. Nothing exercises a valid profile and source file through job queuing, model conversion, generation status, or audio retrieval, so regressions that make the advertised conversion mode fail after validation remain undetected. Add a model-free endpoint test with mocked conversion dependencies that verifies a valid request completes and returns usable audio, including the long-recording path if practical.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "242c0afc4c6f2fb6e85337bf7f501ff912c3fe57bed007cce3345d1fba879e17",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/test_server_integration.py",
+      "line_start": 176,
+      "line_end": 201,
+      "side": "new",
+      "quote": "class TestGenerateEndpoint:\n    def test_missing_required_fields(self, client):\n        response = client.post(\"/generate\", json={})\n        assert response.status_code == 400\n        data = response.json()\n        assert \"error\" in data\n\n    def test_missing_text(self, client):\n        response = client.post(\"/generate\", json={\n            \"profile_id\": \"some-profile\",\n        })\n        assert response.status_code == 400\n\n    def test_missing_profile_id(self, client):\n        response = client.post(\"/generate\", json={\n            \"text\": \"Hello world\",\n        })\n        assert response.status_code == 400\n\n    def test_generation_status_not_found(self, client):\n        response = client.get(\"/generate/nonexistent-id/status\")\n        assert response.status_code == 404\n\n    def test_audio_download_not_found(self, client):\n        response = client.get(\"/audio/nonexistent-id\")\n        assert response.status_code == 404",
+      "title": "Timed TTS route branch is not tested",
+      "description": "The new timestamp-synchronized behavior is exercised only through the standalone audio assembly helper. The `/generate` integration tests cover rejected inputs and unknown IDs, while the binary test submits legacy text without `segments` or `original_duration`; no test sends the Rust-shaped timed payload through the route. A regression in segment filtering, per-segment synthesis, word-gap padding, or duration assembly could therefore pass the suite. Add an integration test with model calls stubbed that submits timestamped segments and checks the completed WAV is positioned and padded to the requested duration.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "4f60f093bec9e23e2ca5430e37bf94aacf8c47aef6cef4b01e00e9795752f641",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/sidecar/tts.py",
+      "line_start": 142,
+      "line_end": 143,
+      "side": "new",
+      "quote": "        if filtered[i][\"start\"] < filtered[i - 1][\"end\"]:\n            filtered[i][\"start\"] = filtered[i - 1][\"end\"]",
+      "title": "Nested segment removal can leave later phrases overlapping",
+      "description": "When the fallback receives overlapping intervals such as A=[0,5], nested B=[1,2], and C=[3,6], B is clamped to start at 5 but later removed as degenerate. C is compared against B's end (2), so it remains at 3 and overlaps A; timed assembly then truncates A at C's start, cutting off generated speech. This path is used when Whisper provides segment timestamps but no word timestamps.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "47bf9ee4e42eae4fa0ca5ef5054f138fa17fa8e727d650da1e2cf806243b9545",
+      "also_raised_by": []
+    }
+  ]
+}

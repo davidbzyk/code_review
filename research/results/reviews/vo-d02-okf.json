@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "language",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 1,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/src/config.rs",
+      "line_start": 97,
+      "line_end": 100,
+      "side": "new",
+      "quote": "        let config = read_static_config().unwrap_or_default();\n        let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;\n        fs::write(&path, json).map_err(|e| e.to_string())?;\n        Ok(config)",
+      "title": "Static config seeding has no regression coverage",
+      "description": "The new first-run behavior reads and parses a project static config, falls back to defaults on missing or invalid input, then persists the selected config in app data. No tests cover these outcomes, so regressions that ignore a valid seed or fail to persist it will go unnoticed. The new keyless-config early return in `sync_to_static` is likewise untested; it can accidentally overwrite the source seed with empty preferences. Add focused coverage for valid, missing/invalid seed files and for saving a config without an API key while preserving the static file.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "dfe23743f70de65564f4f234b1fbdccf7ad192a8d67c14a43af797e9ec8b4203",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/state.svelte.ts",
+      "line_start": 95,
+      "line_end": 100,
+      "side": "new",
+      "quote": "\t\t\t\tconst tauriConfig = await tauriInvoke<AppConfig>('get_config');\n\t\t\t\tif (tauriConfig.elevenlabs_api_key) {\n\t\t\t\t\tthis.config = tauriConfig;\n\t\t\t\t\tlocalStorage.setItem(STORAGE_KEY, JSON.stringify(this.config));\n\t\t\t\t\tlogger.configLoaded('Tauri app data');\n\t\t\t\t\treturn;",
+      "title": "Config source fallback and persistence are untested",
+      "description": "`loadConfig` now rejects a Tauri config without an API key, fetches the static fallback, and persists a usable static config back through `save_config` in Tauri. No tests exercise the keyless Tauri case, the static success/failure cases, or the save-back behavior, so the intended source precedence and next-launch persistence can regress without detection. Add a test that verifies a keyed static config replaces defaults and is saved to app data, plus cases where missing or keyless static data falls through to localStorage.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "c624e0b43b468f025995b6f10de23184d2f571c772378c59ea3f357940fb2f11",
+      "also_raised_by": [
+        "correctness"
+      ]
+    }
+  ]
+}

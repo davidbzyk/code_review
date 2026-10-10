@@ -1,0 +1,67 @@
+{
+  "changed_lines": 1780,
+  "control": true,
+  "rules_sha256": "a00c6f74ad26eae9e57d116ff1cb7047e4226bcb4e065fd90b76d0c1b7ee45c0",
+  "schema_version": 1,
+  "set": "test",
+  "slices": [
+    {
+      "changed_lines": 1780,
+      "id": "vo-t05-s01",
+      "layer": "all",
+      "paths": [
+        "src-tauri/src/ffmpeg.rs",
+        "src-tauri/src/google_drive.rs",
+        "src-tauri/src/lib.rs",
+        "src-tauri/src/library.rs",
+        "src-tauri/src/pipeline.rs",
+        "src-tauri/tauri.conf.json",
+        "src/lib/RecordingCard.svelte",
+        "src/lib/Sidebar.svelte",
+        "src/lib/StatusBar.svelte",
+        "src/lib/library.svelte.ts",
+        "src/lib/state.svelte.ts",
+        "src/routes/(app)/+layout.svelte",
+        "src/routes/(app)/+layout.ts",
+        "src/routes/(app)/+page.svelte",
+        "src/routes/(app)/create-voice/+page.svelte",
+        "src/routes/(app)/library/+page.svelte",
+        "src/routes/(app)/preview/+page.svelte",
+        "src/routes/(app)/settings/+page.svelte"
+      ],
+      "renames": [
+        {
+          "from": "src/routes/+page.svelte",
+          "to": "src/routes/(app)/+page.svelte"
+        },
+        {
+          "from": "src/routes/create-voice/+page.svelte",
+          "to": "src/routes/(app)/create-voice/+page.svelte"
+        },
+        {
+          "from": "src/routes/preview/+page.svelte",
+          "to": "src/routes/(app)/preview/+page.svelte"
+        },
+        {
+          "from": "src/routes/settings/+page.svelte",
+          "to": "src/routes/(app)/settings/+page.svelte"
+        }
+      ]
+    }
+  ],
+  "slug": "vo-t05",
+  "trees": {
+    "base": {
+      "files": 76,
+      "sha256": "94310da2777c0ac6e962ba2624fe9eab920c132b088c6ee65ba2ec3d2f06d115"
+    },
+    "fixed": {
+      "files": 85,
+      "sha256": "afe4b12adc9d44e4ae4f338863c8fe6be532f77aed034d23f4c7bfcf7de6b1d7"
+    },
+    "head": {
+      "files": 84,
+      "sha256": "36be6f93a65bc7e406e6420155259f8cb277ea1bc2d023a7375035ce3c6e2dbf"
+    }
+  }
+}

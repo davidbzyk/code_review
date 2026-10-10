@@ -1,0 +1,18 @@
+{
+  "by_case": {
+    "vo-d01": 5,
+    "vo-d02": 1,
+    "vo-d03": 1,
+    "vo-d05": 1
+  },
+  "by_tag": {
+    "visible_in_diff": 8
+  },
+  "by_tier": {
+    "1": 2,
+    "2": 6
+  },
+  "entries": 8,
+  "sha256": "f0bf23f959450fbaa12a080cb3d1571bce221b18d8c81ecfa0c574fd392a32e1",
+  "version": "dev-v1"
+}

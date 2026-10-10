@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "envelope": {
+    "status": "complete",
+    "reviewers_planned": [
+      "security",
+      "tests",
+      "correctness",
+      "architecture",
+      "code_quality",
+      "compliance",
+      "language"
+    ],
+    "reviewers": [
+      {
+        "reviewer": "security",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "tests",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "correctness",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      },
+      {
+        "reviewer": "architecture",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "code_quality",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 2
+      },
+      {
+        "reviewer": "compliance",
+        "outcome": "empty",
+        "retries": 0,
+        "findings_count": 0
+      },
+      {
+        "reviewer": "language",
+        "outcome": "ok",
+        "retries": 0,
+        "findings_count": 1
+      }
+    ],
+    "runner": "codex-clean",
+    "model": "gpt-6-luna",
+    "effort": "high",
+    "cli_version": "0.161.0",
+    "sandbox_mode": "workspace-write",
+    "dropped": {
+      "quote_gate": 0,
+      "confidence_floor": 0,
+      "duplicate": 0,
+      "validator_declined": 0,
+      "out_of_snapshot": 0,
+      "malformed": 0
+    }
+  },
+  "findings": [
+    {
+      "file": "src-tauri/src/google_drive.rs",
+      "line_start": 268,
+      "line_end": 268,
+      "side": "new",
+      "quote": "    let _file_id = file_data[\"id\"].as_str().unwrap_or_default();",
+      "title": "Remove the unused Drive file ID binding",
+      "description": "After automatic public sharing was removed, this extracted file ID is never read. Remove the binding and drop `id` from the upload response field selection so the code only requests and processes the data it uses.",
+      "severity": "P3",
+      "confidence": 100,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "f1308fa4f9ff2fd454203b5b68f4b270cba63f1694e8f1bf10c05981c1bb62b0",
+      "also_raised_by": []
+    },
+    {
+      "file": "src-tauri/src/secrets.rs",
+      "line_start": 39,
+      "line_end": 41,
+      "side": "new",
+      "quote": "if let Err(err) = e.set_password(&json) {\n        log::error!(\"[secrets] Failed to write keychain: {err}\");\n    }",
+      "title": "A keychain write failure silently discards saved credentials",
+      "description": "If the OS keychain rejects a write (for example, while access is unavailable), this only logs the error and returns normally. `save_config` then strips the secrets from the config file and reports success, so the next load has no credentials and the user must re-enter them; migration can likewise erase the old copy after a failed keychain write.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": "613ebc7cc940e9526e58d83b333eb96d6d0735f28d6b7c854d376dcb44b1d8c5",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 74,
+      "line_end": 78,
+      "side": "new",
+      "quote": "\t\tscreenStream.getVideoTracks()[0]?.addEventListener('ended', () => {\n\t\t\tlogger.warn('record', 'Screen track ended externally');\n\t\t\tcleanup();\n\t\t\tappState.recordingState = 'ready';\n\t\t\tappState.errorMessage = 'Screen sharing was stopped';",
+      "title": "External screen stop abandons the recording",
+      "description": "When the user ends screen sharing from the OS picker while recording, this callback resets the UI and clears the recorder references without running the normal stop/finalize path. In Tauri, already-written chunks remain in the temporary session directory with no final video; in browser mode, the accumulated chunks are never turned into the blob that the preview consumes. The UI is returned to ready, so the user cannot finish the interrupted recording through the normal stop action.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": "daa73bc2a511cc6f386630e36a20ea5be4deda6165d2c8553e6121cfa09c7086",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 98,
+      "line_end": 108,
+      "side": "new",
+      "quote": "\t\tif (appState.webcamStream && screenStream) {\n\t\t\t// Set up canvas compositor to overlay webcam onto screen capture\n\t\t\tconst screenTrack = screenStream.getVideoTracks()[0];\n\t\t\tconst settings = screenTrack.getSettings();\n\t\t\tconst canvasW = settings.width || 1920;\n\t\t\tconst canvasH = settings.height || 1080;\n\n\t\t\tcompositorCanvas = document.createElement('canvas');\n\t\t\tcompositorCanvas.width = canvasW;\n\t\t\tcompositorCanvas.height = canvasH;\n\t\t\tcompositorCtx = compositorCanvas.getContext('2d', { alpha: false, desynchronized: true });",
+      "title": "Extract webcam compositor setup from startRecording",
+      "description": "startRecording now handles screen and audio acquisition, recorder setup, and a multi-step canvas compositor setup with resolution scaling and video element startup. Keeping the compositor construction inline makes the recording orchestration harder to follow and change. Move compositor creation and video-track selection into a focused helper, leaving startRecording to connect the resulting tracks to the recorder.",
+      "severity": "P2",
+      "confidence": 75,
+      "category": "code_quality",
+      "reviewer": "code_quality",
+      "scope": "in_diff",
+      "fingerprint": "14e729d4e1d836ad5101b385d113dddcb94028e830cb1088998a74efc53828e0",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 146,
+      "line_end": 147,
+      "side": "new",
+      "quote": "\t\t\t\tconst canvasStream = compositorCanvas.captureStream(30);\n\t\t\t\tvideoTracks = canvasStream.getVideoTracks();",
+      "title": "Recording compositor has no behavioral test",
+      "description": "The added recorder tests cover only the rectangle calculation and blob store; none exercises `startRecording` with webcam enabled or checks that the MediaRecorder receives the canvas stream containing the drawn webcam frames. A regression that captures only the screen, fails to draw frames, or mishandles the captureStream fallback would still pass, leaving the change's core recorded-overlay behavior unguarded. Add a focused recorder integration test with mocked media devices, canvas/video elements, and MediaRecorder that verifies the selected recording stream and the fallback path.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "c1ed691662392efd1ac9c32d76d12a75d4ba0f10adcfc16aca5beabf26e0da51",
+      "also_raised_by": []
+    },
+    {
+      "file": "src/lib/state.svelte.ts",
+      "line_start": 176,
+      "line_end": 176,
+      "side": "new",
+      "quote": "\t\t\tlocalStorage.setItem(STORAGE_KEY, JSON.stringify(sanitizeForStorage(this.config)));",
+      "title": "Credential redaction has no persistence assertion",
+      "description": "The new tests do not call `saveConfig` with populated credentials and inspect the serialized localStorage value. They therefore would not catch a regression that stores the ElevenLabs key or Drive client secret/access/refresh tokens in browser storage, despite removing those credentials from localStorage being a central security change. Add a test asserting each secret field is empty in the persisted JSON while non-secret settings remain available.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "tests",
+      "reviewer": "tests",
+      "scope": "in_diff",
+      "fingerprint": "00bd65edac731116df1fcbc494f5cdf0424465c3cecc479716233389e9030e7e",
+      "also_raised_by": []
+    }
+  ]
+}
