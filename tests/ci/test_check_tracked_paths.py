@@ -74,3 +74,13 @@ def test_public_voiceover_tasks_may_ship_their_case_material_but_ge_tasks_never(
     assert guard.refused_path("evals/tasks/ge-x766/environment/repo.tar.gz", rules)
     assert guard.refused_path("evals/tasks/ge-x766/task.toml", rules)
     assert guard.refused_path("anything/else/repo.tar.gz", rules)
+
+
+def test_a_public_voiceover_task_still_refuses_credentials_and_graded_output():
+    """The voiceover allowance covers only the case archive, never a login or a grade."""
+    import tomllib
+
+    toml = Path(__file__).resolve().parents[2] / "ci" / "tracked-paths.toml"
+    rules = tomllib.loads(toml.read_text())
+    for name in ("auth.json", ".private-repository", "golden.json", "reward-details.json"):
+        assert guard.refused_path(f"evals/tasks/vo-t01/{name}", rules), name
