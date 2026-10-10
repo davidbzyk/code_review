@@ -9,12 +9,19 @@ deny_globs = [
   "*.env",
   ".env",
   ".env.*",
+  # The general-environments eval tasks hold private code and accepted comments: never public.
+  "evals/tasks/ge-*",
 ]
+# Paths whose case material is published on purpose: the voiceover eval tasks (public repository,
+# key unsealed after the scored run, decision 92). Deny globs still win.
+allow_globs = ["evals/tasks/vo-*"]
+# The denied names those paths may still hold: each task's change archive.
+published_names = ["repo.tar.gz"]
 # Templates of .env that hold no values.
 allow_names = [".env.example", ".env.sample", ".env.template"]
 
 # File names refused in any folder: case material and graded output.
-deny_names = ["repo.tar.gz", "golden.json", "first-review.json", "threads.json",
+deny_names = [".private-repository", "repo.tar.gz", "golden.json", "first-review.json", "threads.json",
               "reward-details.json", "auth.json"]
 
 # Text that must not appear in any tracked file. Each source is a glob under $REVIEW_PRIVATE_ROOT

@@ -75,12 +75,17 @@ def refused_path(path: str, rules: dict) -> str | None:
     name = Path(path).name
     if name in rules.get("allow_names", []):
         return None
-    if name in rules.get("deny_names", []):
-        return f"file name {name} is never tracked"
     lowered = path.lower()
     for glob in rules.get("deny_globs", []):
         if fnmatch(lowered, glob) or fnmatch(name.lower(), glob):
             return f"matches {glob}"
+    # Case material published on purpose (the public voiceover eval tasks): under these paths
+    # only the names in `published_names` are let through; a login or a grade is still refused.
+    published = name in rules.get("published_names", [])
+    if published and any(fnmatch(lowered, glob) for glob in rules.get("allow_globs", [])):
+        return None
+    if name in rules.get("deny_names", []):
+        return f"file name {name} is never tracked"
     return None
 
 
