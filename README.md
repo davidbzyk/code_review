@@ -91,10 +91,12 @@ pull request per review, against a frozen answer key (sha256 recorded in the pre
 Vector found the most bugs but wrote the most noise; with six cases, no arm's lead is outside
 chance. The same answer as above: context stores do not yet earn their cost.
 
-`research/` holds everything needed to check it: the cases (`cases.csv` and each case's base,
-head, manifest and intent), the answer keys and their lock files (`key/`), the OKF notes
-(`okf-notes/`), and every scored review with its scores (`results/`). The vector stores (14 GB)
-are rebuilt from the scripts rather than committed.
+`research/` holds everything needed to check it: the cases (`cases.csv`, naming each change's
+voiceover commits, and each case's manifest and intent), the answer keys and their lock files
+(`key/`), the OKF notes (`okf-notes/`), and every scored review with its scores (`results/`). The
+exact trees the reviewers read for the six test cases ship inside the eval tasks
+(`evals/tasks/vo-t0N/environment/repo.tar.gz`). The vector stores (14 GB) are rebuilt from the
+scripts rather than committed.
 
 ## The CI action: add the review to your project
 

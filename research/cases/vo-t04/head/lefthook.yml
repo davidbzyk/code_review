@@ -1,9 +1,0 @@
-pre-commit:
-  parallel: true
-  commands:
-    frontend-tests:
-      run: pnpm test
-    rust-tests:
-      run: cd src-tauri && cargo test
-    typecheck:
-      run: pnpm check
