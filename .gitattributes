@@ -2,3 +2,4 @@
 # frozen snapshots of other projects and research data, and eval tasks the generator writes.
 research/** linguist-vendored
 evals/tasks/** linguist-generated
+evals/team-tasks/** linguist-generated
