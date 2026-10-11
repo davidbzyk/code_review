@@ -405,5 +405,5 @@ def test_a_git_that_cannot_read_the_marks_fails_the_run_instead_of_skipping(work
     done = subprocess.run(["bash", str(workdir / ".code-review" / "run-review.sh")], env=env,
                           capture_output=True, text=True)  # fmt: skip
     assert "nothing to review" not in done.stdout
-    assert done.returncode != 0
+    assert done.returncode == 2
     assert "check-attr" in done.stderr
