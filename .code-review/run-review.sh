@@ -27,14 +27,20 @@ done < <(git -C "$repo" diff --no-ext-diff -z --name-only --diff-filter=ACMRD "$
 # Files .gitattributes marks linguist-generated or linguist-vendored (snapshots, generated output)
 # are skipped, as GitHub collapses them. The marks are read from the base, so a change cannot
 # mark itself unreviewed. check-attr answers two attributes per path, in order.
+# A git that cannot read them (check-attr --source needs 2.40) fails the run: skipping on an
+# error would pass a change nobody reviewed.
 paths=()
 if [ ${#changed[@]} -gt 0 ]; then
+  marks="$work/marks"
+  if ! printf '%s\0' "${changed[@]}" | git -C "$repo" check-attr -z --stdin --source "$base" \
+       linguist-generated linguist-vendored > "$marks"; then
+    echo "code-review: git check-attr could not read the skip marks (git 2.40 or newer is needed)" >&2
+    exit 2
+  fi
   while IFS= read -r -d '' path && IFS= read -r -d '' _ && IFS= read -r -d '' generated \
         && IFS= read -r -d '' _ && IFS= read -r -d '' _ && IFS= read -r -d '' vendored; do
     case "$generated $vendored" in set\ *|true\ *|*\ set|*\ true) ;; *) paths+=("--path=$path") ;; esac
-  done < <(printf '%s\0' "${changed[@]}" \
-           | git -C "$repo" check-attr -z --stdin --source "$base" linguist-generated \
-             linguist-vendored)
+  done < "$marks"
 fi
 if [ ${#paths[@]} -eq 0 ]; then
   echo "code-review: no changed files outside .code-review/ and the generated or vendored ones, nothing to review"

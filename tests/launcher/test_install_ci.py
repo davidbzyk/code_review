@@ -375,3 +375,35 @@ def test_the_install_carries_every_module_the_wrapper_runs(workdir):
 
     for module in sorted(set(re.findall(r"-m (review_core[\w.]+)", script))):
         assert (dest / "src" / (module.replace(".", "/") + ".py")).is_file(), module
+
+
+def test_a_git_that_cannot_read_the_marks_fails_the_run_instead_of_skipping(workdir, tmp_path):
+    """Git before 2.40 has no `check-attr --source`: the run must fail, not report nothing to
+    review and pass (the change would go unreviewed)."""
+    bundle.install(workdir)
+    git = ["git", "-C", str(workdir), "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run([*git, "add", "-A"], check=True, capture_output=True)
+    subprocess.run([*git, "commit", "-q", "-m", "install"], check=True, capture_output=True)
+    subprocess.run([*git, "tag", "installed"], check=True, capture_output=True)
+    (workdir / "src.py").write_text("y = 2\n")
+    subprocess.run([*git, "add", "-A"], check=True, capture_output=True)
+    subprocess.run([*git, "commit", "-q", "-m", "code"], check=True, capture_output=True)
+    shim = tmp_path / "bin"
+    shim.mkdir()
+    real = subprocess.run(["which", "git"], capture_output=True, text=True).stdout.strip()
+    (shim / "git").write_text(
+        "#!/bin/bash\n"
+        'for a in "$@"; do\n'
+        '  [ "$a" = check-attr ] && { echo "unknown option: --source" >&2; exit 129; }\n'
+        "done\n"
+        f'exec {real} "$@"\n'
+    )
+    (shim / "git").chmod(0o755)
+    env = {"PATH": f"{shim}:{os.environ['PATH']}", "HOME": str(tmp_path),
+           "RUNNER_TEMP": str(tmp_path / "rt"), "GITHUB_WORKSPACE": str(workdir),
+           "CR_BASE": "installed", "CR_HEAD": "HEAD"}  # fmt: skip
+    done = subprocess.run(["bash", str(workdir / ".code-review" / "run-review.sh")], env=env,
+                          capture_output=True, text=True)  # fmt: skip
+    assert "nothing to review" not in done.stdout
+    assert done.returncode == 2
+    assert "check-attr" in done.stderr
