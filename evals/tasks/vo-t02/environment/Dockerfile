@@ -18,5 +18,7 @@ RUN ln -s ../lib/node_modules/@openai/codex/bin/codex.js /usr/local/bin/codex \
  && codex --version \
  && useradd --create-home --uid 1000 --shell /bin/bash reviewer
 ADD repo.tar.gz /workspace/
-RUN mkdir -p /workspace/review && chown -R reviewer:reviewer /workspace
+# The archive carries no git index (it would hold build times); rebuild it from HEAD.
+RUN git -C /workspace/repo read-tree HEAD \
+ && mkdir -p /workspace/review && chown -R reviewer:reviewer /workspace
 WORKDIR /workspace
