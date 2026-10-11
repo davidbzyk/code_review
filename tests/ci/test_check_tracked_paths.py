@@ -74,6 +74,9 @@ def test_public_voiceover_tasks_may_ship_their_case_material_but_ge_tasks_never(
     assert guard.refused_path("evals/tasks/ge-x766/environment/repo.tar.gz", rules)
     assert guard.refused_path("evals/tasks/ge-x766/task.toml", rules)
     assert guard.refused_path("anything/else/repo.tar.gz", rules)
+    assert guard.refused_path("evals/team-tasks/vo-t01/environment/repo.tar.gz", rules) is None
+    assert guard.refused_path("evals/team-tasks/ge-x766/environment/repo.tar.gz", rules)
+    assert guard.refused_path("evals/team-tasks/ge-x766/task.toml", rules)
 
 
 def test_a_public_voiceover_task_still_refuses_credentials_and_graded_output():

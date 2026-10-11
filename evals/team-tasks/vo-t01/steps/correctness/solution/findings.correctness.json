@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "reviewer": "correctness",
+  "findings": [
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 703,
+      "line_end": 703,
+      "side": "new",
+      "quote": "            \"whisper\": _is_model_downloaded(models_dir, \"mlx-community/whisper-large-v3-turbo\"),",
+      "title": "The /health endpoint decides whether Whisper is downloaded by looking only at one hard-coded model (large-v3-turbo), so when a different registered Whisper model is the one downloaded or selected, the health report says Whisper is missing.",
+      "description": "The /health endpoint decides whether Whisper is downloaded by looking only at one hard-coded model (large-v3-turbo), so when a different registered Whisper model is the one downloaded or selected, the health report says Whisper is missing.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": null
+    },
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 733,
+      "line_end": 733,
+      "side": "new",
+      "quote": "        result = do_transcribe(str(temp_path), str(DATA_DIR / \"models\"), **kwargs)",
+      "title": "The transcription endpoints call the blocking Whisper function directly inside async handlers, so a transcription freezes the sidecar's event loop and every other request (health checks, status polls) stalls until it finishes.",
+      "description": "The transcription endpoints call the blocking Whisper function directly inside async handlers, so a transcription freezes the sidecar's event loop and every other request (health checks, status polls) stalls until it finishes.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": null
+    },
+    {
+      "file": "src-tauri/sidecar/server.py",
+      "line_start": 689,
+      "line_end": 689,
+      "side": "new",
+      "quote": "        logger.warning(f\"Error scanning model cache for {repo_id}: {e}\")",
+      "title": "When scanning the model cache raises, the failure is logged but the 'not downloaded' result is still stored in the 30 second cache, so a transient error makes an installed model look missing for the next 30 seconds.",
+      "description": "When scanning the model cache raises, the failure is logged but the 'not downloaded' result is still stored in the 30 second cache, so a transient error makes an installed model look missing for the next 30 seconds.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": null
+    },
+    {
+      "file": "src-tauri/sidecar/tts.py",
+      "line_start": 161,
+      "line_end": 161,
+      "side": "new",
+      "quote": "    repo_id = WHISPER_MODELS.get(model_name, model_name)",
+      "title": "An unknown Whisper model name is silently used as a Hugging Face repo id instead of being rejected, so a typo or a stale saved setting makes the sidecar try to download and load an arbitrary repository.",
+      "description": "An unknown Whisper model name is silently used as a Hugging Face repo id instead of being rejected, so a typo or a stale saved setting makes the sidecar try to download and load an arbitrary repository.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": null
+    },
+    {
+      "file": "src-tauri/src/models.rs",
+      "line_start": 147,
+      "line_end": 147,
+      "side": "new",
+      "quote": "    let url = format!(\"http://127.0.0.1:{}/models/{}\", port, model);",
+      "title": "The new delete-model command builds the sidecar URL by pasting the frontend-supplied model name into the path with no validation, so a name containing path segments reaches other sidecar routes with the DELETE method (for example a voice profile), outside the model routes the command is meant for.",
+      "description": "The new delete-model command builds the sidecar URL by pasting the frontend-supplied model name into the path with no validation, so a name containing path segments reaches other sidecar routes with the DELETE method (for example a voice profile), outside the model routes the command is meant for.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": null
+    }
+  ]
+}
