@@ -69,7 +69,9 @@ def finish(
     if not findings:
         reward = {"reward": 0.0, "recall": 0.0, "format": 0.0 if findings is None else 1.0,
                   "findings": 0.0}  # fmt: skip
-        _write(out, reward, {"judged": False, "reason": reason or "empty findings list"})
+        # No judge ran: an empty criteria list marks the zero as unjudged, with the reason.
+        unjudged = {"score": 0.0, "criteria": [], "note": reason or "empty findings list"}
+        _write(out, reward, {DIMENSION: unjudged})
         return 0
     # Clear only the judge's workspace: the work folder may be the process's working directory,
     # and deleting it leaves imports that call os.getcwd() (LiteLLM's) to fail.
@@ -93,7 +95,8 @@ def finish(
         return 1
     recall = float(scores[DIMENSION])
     reward = {"reward": recall, "recall": recall, "format": 1.0, "findings": float(len(findings))}
-    _write(out, reward, {"judged": True, "rubric": details})
+    # Reward Kit's own document, unwrapped: graders and the platform read it as written.
+    _write(out, reward, details)
     return 0
 
 
