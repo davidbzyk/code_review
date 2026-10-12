@@ -11,10 +11,14 @@ def test_the_evals_are_team_tasks_and_cases_only():
     assert sorted(p.name for p in EVALS.iterdir() if p.is_dir()) == ["cases", "team-tasks"]
 
 
-def test_every_team_task_runs_seven_reviewers_then_the_validator():
-    """Eight steps each, the graded validator last."""
+TEAM = ["security", "tests", "correctness", "architecture", "code_quality", "compliance",
+        "language"]  # fmt: skip
+
+
+def test_every_team_task_runs_the_seven_reviewers_then_the_validator():
+    """The review team's reviewers in order, then the graded validator step."""
     tasks = sorted((EVALS / "team-tasks").iterdir())
     assert [t.name for t in tasks] == [f"vo-t0{n}" for n in range(1, 7)]
     for task in tasks:
         steps = tomllib.loads((task / "task.toml").read_text(encoding="utf-8"))["steps"]
-        assert len(steps) == 8 and steps[-1]["name"] == "validator", task.name
+        assert [s["name"] for s in steps] == [*TEAM, "validator"], task.name
