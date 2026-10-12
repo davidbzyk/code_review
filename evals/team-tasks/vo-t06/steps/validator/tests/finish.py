@@ -44,7 +44,9 @@ def rubric_with_findings(rubric: Path, findings: list, work: Path) -> Path:
     copy = work / "rubric"
     shutil.rmtree(copy, ignore_errors=True)
     shutil.copytree(rubric, copy)
-    text = json.dumps(findings, indent=2)
+    # Reward Kit fills {criteria} after this, across the whole prompt: escaped as JSON's \\u007b,
+    # a finding that holds the placeholder reads the same but cannot pull the known issues in.
+    text = json.dumps(findings, indent=2).replace("{criteria}", "\\u007bcriteria}")
     prompts = [p for p in copy.rglob("*.md") if SLOT in p.read_text(encoding="utf-8")]
     if not prompts:
         raise ValueError(f"no rubric prompt under {rubric} has a {SLOT} slot")
