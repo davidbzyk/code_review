@@ -10,12 +10,13 @@ deny_globs = [
   ".env",
   ".env.*",
   # The general-environments eval tasks hold private code and accepted comments: never public.
-  "evals/tasks/ge-*",
   "evals/team-tasks/ge-*",
+  # Single-agent tasks run one agent, not the review team: they are not evals here.
+  "evals/tasks/*",
 ]
 # Paths whose case material is published on purpose: the voiceover eval tasks (public repository,
 # key unsealed after the scored run, decision 92). Deny globs still win.
-allow_globs = ["evals/tasks/vo-*", "evals/team-tasks/vo-*"]
+allow_globs = ["evals/team-tasks/vo-*"]
 # The denied names those paths may still hold: each task's change archive.
 published_names = ["repo.tar.gz"]
 # Templates of .env that hold no values.

@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 MAX_BYTES = 5_000_000  # the default; the task passes the bundle's agent.max_findings_bytes
-# The pipeline's severities in the single-agent instruction's scale, so one grader reads both.
+# The pipeline's severities in the grader's high/medium/low scale.
 SEVERITY = {"P0": "high", "P1": "high", "P2": "medium", "P3": "low"}
 
 
