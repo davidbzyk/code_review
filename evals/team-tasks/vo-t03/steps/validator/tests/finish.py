@@ -20,6 +20,9 @@ from pathlib import Path
 FINDINGS = "findings.json"
 DIMENSION = "recall"
 SLOT = "{findings}"  # where each rubric prompt gets the findings themselves
+# Written as JSON escapes, which decode to the same finding: Reward Kit fills {criteria} across the
+# whole prompt after this, and the prompt fences the findings in ```, so neither may come from one.
+INERT = (("{criteria}", "\\u007bcriteria}"), ("`", "\\u0060"))
 
 
 def load_findings(path: Path) -> tuple[list | None, str]:
@@ -44,9 +47,9 @@ def rubric_with_findings(rubric: Path, findings: list, work: Path) -> Path:
     copy = work / "rubric"
     shutil.rmtree(copy, ignore_errors=True)
     shutil.copytree(rubric, copy)
-    # Reward Kit fills {criteria} after this, across the whole prompt: escaped as JSON's \\u007b,
-    # a finding that holds the placeholder reads the same but cannot pull the known issues in.
-    text = json.dumps(findings, indent=2).replace("{criteria}", "\\u007bcriteria}")
+    text = json.dumps(findings, indent=2)
+    for raw, escaped in INERT:
+        text = text.replace(raw, escaped)
     prompts = [p for p in copy.rglob("*.md") if SLOT in p.read_text(encoding="utf-8")]
     if not prompts:
         raise ValueError(f"no rubric prompt under {rubric} has a {SLOT} slot")
