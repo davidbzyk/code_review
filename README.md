@@ -33,7 +33,7 @@ turn the review into a self-improving workflow. This README is its summary.
 |---|---|---|
 | The review team | Seven reviewers (security, tests, correctness, architecture, code quality, compliance, language) and a validator, run by one orchestrator, merged into one de-duplicated set of findings | `src/review_core/`, `src/plugin/` |
 | The CI action | Reviews every pull request on a GitHub runner with Codex and posts the findings like the commercial review bots do | `action/` |
-| The evals | Rubric-graded Harbor tasks built from real, confirmed bugs, run by one agent or by the whole review team, for any agent, harness, model and judge | `evals/` |
+| The evals | Rubric-graded Harbor tasks built from real, confirmed bugs, each run by the whole review team as a multi-step task, for any agent, harness, model and judge | `evals/` |
 | The research | The voiceover cases, the frozen answer keys, the OKF notes and every scored review | `research/` |
 
 ## The research: does giving review agents more context help?
@@ -95,7 +95,7 @@ chance. The same answer as above: context stores do not yet earn their cost.
 voiceover commits, and each case's manifest and intent), the answer keys and their lock files
 (`key/`), the OKF notes (`okf-notes/`), and every scored review with its scores (`results/`). The
 exact trees the reviewers read for the six test cases ship inside the eval tasks
-(`evals/tasks/vo-t0N/environment/repo.tar.gz`). The vector stores (14 GB) are rebuilt from the
+(`evals/team-tasks/vo-t0N/environment/repo.tar.gz`). The vector stores (14 GB) are rebuilt from the
 scripts rather than committed.
 
 ## The CI action: add the review to your project
@@ -144,12 +144,11 @@ Each eval is a Harbor task: a real change, its confirmed bugs as a rubric, and a
 scores how many of them a review finds. The agent, harness, model and judge are all chosen at
 run time, so the same tasks compare any of them.
 
-- `evals/tasks/vo-t01` to `vo-t06`: the six scored voiceover changes, one task per pull request.
-- `evals/team-tasks/vo-t01` to `vo-t06`: the same six changes reviewed by the team as it ships. Each
-  is a multi-step Harbor task: seven reviewer steps, each a fresh agent session given the
-  orchestrator's own message, then the validator step, whose final findings the same judge grades.
-  One trajectory per step, so you can see each reviewer come in and out. The single-agent tasks
-  above are the baseline.
+- `evals/team-tasks/vo-t01` to `vo-t06`: the six scored voiceover changes, one task per pull
+  request, reviewed by the team as it ships. Each is a multi-step Harbor task: seven reviewer
+  steps, each a fresh agent session given the orchestrator's own message, then the validator step,
+  whose final findings a rubric judge grades. One trajectory per step, so you can see each
+  reviewer come in and out.
 - `evals/cases/cr-self-01`: this repository's own history, the first commit of the CI action and
   the 18 confirmed bugs it contained. Can the review tool find the bugs in itself?
 
