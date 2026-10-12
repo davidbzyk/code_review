@@ -149,6 +149,10 @@ run time, so the same tasks compare any of them.
   steps, each a fresh agent session given the orchestrator's own message, then the validator step,
   whose final findings a rubric judge grades. One trajectory per step, so you can see each
   reviewer come in and out.
+- `evals/team-tasks/vo-x1`, `vo-x4`, `vo-x7`, `vo-x8`, `vo-x17` and `vo-x20`: six more voiceover
+  changes, run the same way. Each key is the pull request's first bot review (Codex or CodeRabbit),
+  keeping only the findings the reviewed commit confirms on reading. Five of them (all but
+  vo-x20) were the study's tuning changes, so they are not blind like the six scored ones.
 - `evals/cases/cr-self-01`: this repository's own history, the first commit of the CI action and
   the 18 confirmed bugs it contained. Can the review tool find the bugs in itself?
 

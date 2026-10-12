@@ -19,6 +19,14 @@ from pathlib import Path
 
 FINDINGS = "findings.json"
 DIMENSION = "recall"
+SLOT = "{findings}"  # where each rubric prompt gets the findings themselves
+# Written as JSON escapes, which decode to the same finding: Reward Kit fills {criteria} across the
+# whole prompt after this, and the prompt fences the findings in ```, so neither may come from one.
+INERT = (("{criteria}", "\\u007bcriteria}"), ("`", "\\u0060"))
+# Agent judges take the prompt as one argument, which Linux caps at 128 KiB: past this, the findings
+# stay in findings.json only and the prompt sends the judge there.
+MAX_PASTE = 100_000
+TOO_LONG = "(Too long to paste here: read the findings in findings.json in your working directory.)"
 
 
 def load_findings(path: Path) -> tuple[list | None, str]:
@@ -32,6 +40,28 @@ def load_findings(path: Path) -> tuple[list | None, str]:
     if not isinstance(data, list) or not all(isinstance(f, dict) for f in data):
         return None, "findings file is not a list of objects"
     return data, ""
+
+
+def rubric_with_findings(rubric: Path, findings: list, work: Path) -> Path:
+    """A copy of the rubric whose prompts hold the findings, so no judge can grade without them.
+
+    An agent judge is only pointed at its working directory and may answer without opening
+    findings.json; text in the prompt reaches every backend.
+    """
+    copy = work / "rubric"
+    shutil.rmtree(copy, ignore_errors=True)
+    shutil.copytree(rubric, copy)
+    text = json.dumps(findings, indent=2)
+    for raw, escaped in INERT:
+        text = text.replace(raw, escaped)
+    if len(text.encode("utf-8")) > MAX_PASTE:
+        text = TOO_LONG
+    prompts = [p for p in copy.rglob("*.md") if SLOT in p.read_text(encoding="utf-8")]
+    if not prompts:
+        raise ValueError(f"no rubric prompt under {rubric} has a {SLOT} slot")
+    for p in prompts:
+        p.write_text(p.read_text(encoding="utf-8").replace(SLOT, text), encoding="utf-8")
+    return copy
 
 
 def run_rewardkit(rubric: Path, workspace: Path, output: Path) -> None:
@@ -81,10 +111,10 @@ def finish(
     (workspace / FINDINGS).write_text(json.dumps(findings, indent=2) + "\n")
     output = work / "reward.json"
     try:
-        judge(tests / "rubric", workspace, output)
+        judge(rubric_with_findings(tests / "rubric", findings, work), workspace, output)
         scores = json.loads(output.read_text())
         details = json.loads(output.with_name("reward-details.json").read_text())
-    except (subprocess.CalledProcessError, OSError, json.JSONDecodeError) as exc:
+    except (subprocess.CalledProcessError, OSError, ValueError) as exc:
         print(f"finish: the judge did not run: {exc}", file=sys.stderr)
         return 1
     if errors := judge_errors(details):
