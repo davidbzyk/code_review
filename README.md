@@ -153,6 +153,11 @@ run time, so the same tasks compare any of them.
   changes, run the same way. Each key is the pull request's first bot review (Codex or CodeRabbit),
   keeping only the findings the reviewed commit confirms on reading. Five of them (all but
   vo-x20) were the study's tuning changes, so they are not blind like the six scored ones.
+- `evals/team-tasks/<slug>-llm-judge` for vo-x7, vo-x4, vo-t06, vo-t01, vo-t04 and vo-t02: the same
+  six changes with another grader. A judge with file tools reads the review, the known issues and
+  the code at the reviewed commit, and rates four 1-5 scales whose weights sum to 1: known issues
+  (0.30), whether other findings hold up in the code (0.25), severity and fixes (0.15), and
+  economic value, the hard engineering work the review saves (0.30).
 - `evals/cases/cr-self-01`: this repository's own history, the first commit of the CI action and
   the 18 confirmed bugs it contained. Can the review tool find the bugs in itself?
 

@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "reviewer": "correctness",
+  "findings": [
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 508,
+      "line_end": 508,
+      "side": "new",
+      "quote": "\tregionRect = null;",
+      "title": "If recording is cleaned up while the region selector is open (for example the shared screen ends), the pending selection promise is dropped without being settled, so the start call never returns and the record button stays disabled.",
+      "description": "If recording is cleaned up while the region selector is open (for example the shared screen ends), the pending selection promise is dropped without being settled, so the start call never returns and the record button stays disabled.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": null
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 530,
+      "line_end": 530,
+      "side": "new",
+      "quote": "\tif (regionReject) {",
+      "title": "Cancelling the region selection rejects the pending promise with no reason, so the start flow throws an undefined error and the user sees an 'undefined' error message.",
+      "description": "Cancelling the region selection rejects the pending promise with no reason, so the start flow throws an undefined error and the user sees an 'undefined' error message.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": null
+    },
+    {
+      "file": "src-tauri/src/config.rs",
+      "line_start": 122,
+      "line_end": 122,
+      "side": "new",
+      "quote": "pub async fn get_config(app: tauri::AppHandle) -> Result<AppConfig, String> {",
+      "title": "The config commands were made async but still do blocking keychain and file I/O directly on the async runtime, so they can stall other tasks.",
+      "description": "The config commands were made async but still do blocking keychain and file I/O directly on the async runtime, so they can stall other tasks.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": null
+    },
+    {
+      "file": "src/lib/recorder.svelte.ts",
+      "line_start": 98,
+      "line_end": 98,
+      "side": "new",
+      "quote": "\t\tscreenStream = await displayPromise;",
+      "title": "If the user cancels the screen picker (or capture fails) after the app window was minimized, the error path never restores the window, so the app stays minimized.",
+      "description": "If the user cancels the screen picker (or capture fails) after the app window was minimized, the error path never restores the window, so the app stays minimized.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": null
+    },
+    {
+      "file": "src/lib/RegionSelector.svelte",
+      "line_start": 136,
+      "line_end": 136,
+      "side": "new",
+      "quote": "\t\t<div class=\"actions\" style=\"left:{selRect.x + selRect.width / 2}px; top:{selRect.y - 48}px;\" onmousedown={(e) => e.stopPropagation()}>",
+      "title": "The Record Region / Cancel toolbar is placed a fixed distance above the selection, so a selection near the top edge pushes it off screen and the selection cannot be confirmed.",
+      "description": "The Record Region / Cancel toolbar is placed a fixed distance above the selection, so a selection near the top edge pushes it off screen and the selection cannot be confirmed.",
+      "severity": "P1",
+      "confidence": 100,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": null
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "pr-4-g01",
+    "title": "Load Tauri config even when API key is empty",
+    "detail": "Load Tauri config even when API key is empty\n\nThis branch only accepts `get_config` results when `tauriConfig.elevenlabs_api_key` is truthy, so valid app-data settings (for example `output_dir`, preferences, or Drive metadata) are discarded whenever the key is blank or intentionally cleared. In that case startup falls through to static/localStorage instead of using the persisted Tauri config, which regresses config durability compared to previous behavior where app-data config was always loaded.",
+    "file": "src/lib/state.svelte.ts",
+    "line_start": 96,
+    "line_end": 100,
+    "weight": 1.0
+  },
+  {
+    "id": "pr-4-g02",
+    "title": "Accept static bridge files without an API key",
+    "detail": "Accept static bridge files without an API key\n\nThe static fallback now requires `data.elevenlabs_api_key`, but `sync_to_static` intentionally writes `_config.json` with an empty API key (`\"elevenlabs_api_key\": \"\"`) to avoid exposing secrets. As a result, browser/Tauri-fallback loading will skip the synced static file and lose non-sensitive bridged settings (voices/preferences/output dir) that were previously imported from `static/_config.json`.",
+    "file": "src/lib/state.svelte.ts",
+    "line_start": 113,
+    "line_end": 113,
+    "weight": 1.0
+  }
+]
