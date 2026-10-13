@@ -14,11 +14,12 @@ import json
 import shutil
 import subprocess
 import sys
+import tarfile
 from collections.abc import Callable
 from pathlib import Path
 
 FINDINGS = "findings.json"
-DIMENSION = "recall"
+DIMENSION = "recall"  # the score's name when the rubric has no single folder
 
 
 def load_findings(path: Path) -> tuple[list | None, str]:
@@ -57,6 +58,25 @@ def judge_errors(details: dict) -> list[str]:
     ]
 
 
+def dimension(rubric: Path) -> str:
+    """The score's name: the rubric's one folder (recall/, or review/ for an llm-judge task)."""
+    folders = sorted(p.name for p in rubric.iterdir() if p.is_dir()) if rubric.is_dir() else []
+    if len(folders) > 1:
+        raise ValueError(f"{rubric} holds {len(folders)} rubric folders; a task scores one")
+    return folders[0] if folders else DIMENSION
+
+
+def stage_judge_inputs(tests: Path, workspace: Path) -> None:
+    """Put the task's own judge inputs (tests/workspace/) beside the findings; a tarball unpacks."""
+    extra = tests / "workspace"
+    for item in sorted(extra.iterdir()) if extra.is_dir() else []:
+        if item.name.endswith(".tar.gz"):
+            with tarfile.open(item) as tar:
+                tar.extractall(workspace, filter="data")
+        elif item.is_file():
+            shutil.copyfile(item, workspace / item.name)
+
+
 def finish(
     artifacts: Path,
     tests: Path,
@@ -65,36 +85,38 @@ def finish(
     judge: Callable[[Path, Path, Path], None] = run_rewardkit,
 ) -> int:
     """Grade the trial and write the reward; returns the process exit code."""
+    dim = dimension(tests / "rubric")
     findings, reason = load_findings(artifacts / FINDINGS)
     if not findings:
-        reward = {"reward": 0.0, "recall": 0.0, "format": 0.0 if findings is None else 1.0,
+        reward = {"reward": 0.0, dim: 0.0, "format": 0.0 if findings is None else 1.0,
                   "findings": 0.0}  # fmt: skip
         # No judge ran: an empty criteria list marks the zero as unjudged, with the reason.
         unjudged = {"score": 0.0, "criteria": [], "note": reason or "empty findings list"}
-        _write(out, reward, {DIMENSION: unjudged})
+        _write(out, reward, {dim: unjudged})
         return 0
     # Clear only the judge's workspace: the work folder may be the process's working directory,
     # and deleting it leaves imports that call os.getcwd() (LiteLLM's) to fail.
     workspace = work / "workspace"
     shutil.rmtree(workspace, ignore_errors=True)
     workspace.mkdir(parents=True)
-    (workspace / FINDINGS).write_text(json.dumps(findings, indent=2) + "\n")
     output = work / "reward.json"
     try:
+        stage_judge_inputs(tests, workspace)
+        (workspace / FINDINGS).write_text(json.dumps(findings, indent=2) + "\n")
         judge(tests / "rubric", workspace, output)
         scores = json.loads(output.read_text())
         details = json.loads(output.with_name("reward-details.json").read_text())
-    except (subprocess.CalledProcessError, OSError, json.JSONDecodeError) as exc:
+    except (subprocess.CalledProcessError, OSError, tarfile.TarError, json.JSONDecodeError) as exc:
         print(f"finish: the judge did not run: {exc}", file=sys.stderr)
         return 1
     if errors := judge_errors(details):
         print("finish: the judge failed on " + "; ".join(errors), file=sys.stderr)
         return 1
-    if DIMENSION not in scores:
-        print(f"finish: Reward Kit wrote no {DIMENSION!r} score: {scores}", file=sys.stderr)
+    if dim not in scores:
+        print(f"finish: Reward Kit wrote no {dim!r} score: {scores}", file=sys.stderr)
         return 1
-    recall = float(scores[DIMENSION])
-    reward = {"reward": recall, "recall": recall, "format": 1.0, "findings": float(len(findings))}
+    score = float(scores[dim])
+    reward = {"reward": score, dim: score, "format": 1.0, "findings": float(len(findings))}
     # Reward Kit's own document, unwrapped: graders and the platform read it as written.
     _write(out, reward, details)
     return 0
