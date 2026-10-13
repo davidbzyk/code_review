@@ -14,18 +14,19 @@ its own did as well as either context store, with nothing to build or serve. Thi
 holds the public voiceover cases and experiments; I also include the results from General
 Environments' own codebase, as it is a great example of rapid agentic engineering.
 
-**The comparison.** This repository has several commercial reviewers turned on (Codex, Greptile,
-CodeRabbit, Gravity, Devin and Sonar) next to its own review action. That seems excessive, but it
-means every pull request here compares them side by side.
+**The comparison.** Several commercial reviewers were turned on here next to the repository's own
+review action, but only two of them reviewed its pull requests: CodeRabbit (60 comments across 18
+pull requests) and GitHub Copilot (17). Codex, Greptile, Gravity, Devin and Sonar posted nothing, so
+the side-by-side on these pull requests is CodeRabbit, Copilot and the review action.
 
 **The design.** I went through all my code and security review plugins and kept what I thought
-was valuable from each; the sources are cited at the bottom of this page.
+was valuable from each; every reviewer cites its sources in its own folder (see the last section).
 
-The full write-up will be a Medium article *(link when published)*, written as a tutorial: import
-this repository into General Environments, run its benchmarks across several models and harnesses,
-and find which one suits this use case best for cost and speed. The article also shows the results
-on a larger, more complex codebase (General Environments itself), and how benchmarking and analysis
-turn the review into a self-improving workflow. This README is its summary.
+The full write-up will be a Medium article *(link when published)* that compares and evaluates:
+this repository's evals are imported into General Environments and run across models and harnesses,
+for review quality and for cost. Running every task on every model proved expensive, so part of the
+work is finding the most economically viable set of tasks and models. The article also covers a
+larger, more complex codebase (General Environments itself). This README is its summary.
 
 ## What is in this repository
 
@@ -161,6 +162,28 @@ run time, so the same tasks compare any of them.
 - `evals/cases/cr-self-01`: this repository's own history, the first commit of the CI action and
   the 18 confirmed bugs it contained. Can the review tool find the bugs in itself?
 
+### Results so far
+
+Two full runs on 2026-10-12, one trial per task: the review team on the Codex CLI with gpt-6-luna
+(reasoning medium) and with gpt-6.1-sol (high), each graded by a Codex judge on gpt-6-luna. Cost is
+Harbor's API-equivalent figure for the review team (the runs used a ChatGPT subscription); the
+judge's cost is not included. Over the 12 public tasks:
+
+| Agent model | Recall | Findings per task | Input tokens per task | Cost per task |
+|---|---|---|---|---|
+| gpt-6-luna (medium) | 0.31 | 5.6 | 15.5M | $0.24 |
+| gpt-6.1-sol (high) | 0.54 | 13.4 | 21.7M | $4.65 |
+
+- **Sol finds about 1.7 times as much at about 19 times the cost.** It led on 8 tasks, Luna on 1
+  (vo-x20, 0.80 to 0), and 3 were tied.
+- **Single tasks are noisy.** With one trial each, a key of one or two issues swings a whole point
+  (vo-x7, vo-x1); read the totals, not one task.
+- **One known judge miss.** On vo-x4 under Sol the judge scored six findings 0 without opening
+  `findings.json` (1 of 22 trials across both runs). It stays: every run is graded the same way.
+- The `-llm-judge` tasks have not been run yet.
+
+Per trial (recall, findings, tokens, cost): `research/results/team-evals-2026-10-12.csv`.
+
 The loop this repository is building toward:
 
 1. A pull request changes the review logic: a skill, a prompt, the launcher, a runner row.
@@ -181,34 +204,13 @@ Steps 1, 2 (the digest) and 4 work today; the rest is this version's work.
 
 ## Status
 
-Built in the open. Current version: v0.1 in progress. Model observations so far: gpt-6-luna leans
-to minor findings and padded summaries, and two runs on nearly the same change disagreed on the
-most serious finding; a comparison across models on the evals is next.
+Current version: v0.1 in progress. Model observations so far: gpt-6-luna leans to minor findings
+and padded summaries, and two runs on nearly the same change disagreed on the most serious finding.
+The first cross-model results are above; the `-llm-judge` tasks and more models are next.
 
 ## Sources and citations
 
-<details>
-<summary>The review plugins and skills the reviewers were built from</summary>
-
-Each reviewer skill records, passage by passage, which source it came from, the source file and
-lines, and whether the text is verbatim or changed: see `CITATIONS.md` in each skill folder under
-[`src/plugin/skills/`](src/plugin/skills/).
-
-- [agent-skills](https://github.com/addyosmani/agent-skills) (Addy Osmani)
-- [brooks-lint](https://github.com/hyhmrright/brooks-lint)
-- [compound-engineering](https://github.com/EveryInc/compound-engineering-plugin) (Every): `ce-code-review`, `ce-simplify-code`
-- claude-code-workflows (Seth Hobson): comprehensive-review, developer-essentials, agent-teams,
-  backend-development, data-validation-suite
-- claude-plugins-official (Anthropic): code-review, code-simplifier, feature-dev code-reviewer,
-  security-guidance
-- pr-review-toolkit (Anthropic)
-- mattpocock-skills: code-review
-- superpowers: requesting and receiving code review
-- codebase-audit-suite (levnikolaevich-skills-marketplace)
-- [Claude-BugHunter](https://github.com/elementalsouls/Claude-BugHunter): security-arsenal
-- [Cursor plugins](https://github.com/cursor/plugins): thermos
-- [antigravity-awesome-skills](https://github.com/sickn33/antigravity-awesome-skills): 007 (renat),
-  secrets-management, security-audit, security-scanning-security-hardening
-- security-lens-reviewer, security-reviewer, multi-agent-review
-
-</details>
+Each reviewer skill cites its sources passage by passage (the source, its file and lines, and
+whether the text is verbatim or changed) in `CITATIONS.md` in its folder under
+[`src/plugin/skills/`](src/plugin/skills/); [`src/plugin/provenance/`](src/plugin/provenance/)
+records what each source contributed and what was left out.
