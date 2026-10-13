@@ -1,0 +1,7 @@
+task,agent_model,judge_model,reward,known_issues,finding_validity,severity_and_fixes,economic_value,findings,input_tokens,cost_usd
+vo-t01-llm-judge,gpt-6-luna (medium),gpt-6-luna,0.175,1,2,2,2,6,17005322,0.28
+vo-t02-llm-judge,gpt-6-luna (medium),gpt-6-luna,0.425,2,3,3,3,9,18129685,0.29
+vo-t04-llm-judge,gpt-6-luna (medium),gpt-6-luna,0.425,2,3,3,3,7,22732566,0.35
+vo-t06-llm-judge,gpt-6-luna (medium),gpt-6-luna,0.6625,3,5,4,3,6,11128751,0.18
+vo-x4-llm-judge,gpt-6-luna (medium),gpt-6-luna,0.0375,1,1,2,1,1,8366331,0.15
+vo-x7-llm-judge,gpt-6-luna (medium),gpt-6-luna,0.7125,5,1,4,5,2,8797148,0.16
