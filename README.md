@@ -179,12 +179,13 @@ judge's cost is not included. Over the 12 public tasks:
 | gpt-6-luna (medium) | 0.31 | 5.6 | 15.5M | $0.24 |
 | gpt-6.1-sol (high) | 0.54 | 13.4 | 21.7M | $4.65 |
 
-- **Sol finds about 1.7 times as much at about 19 times the cost.** It led on 8 tasks, Luna on 1
-  (vo-x20, 0.80 to 0), and 3 were tied.
+- **Sol's recall is about 1.7 times Luna's, at about 19 times the cost.** It also writes 2.4 times
+  as many findings. It led on 8 tasks, Luna on 1 (vo-x20, 0.80 to 0), and 3 were tied.
 - **Single tasks are noisy.** With one trial each, a key of one or two issues swings a whole point
   (vo-x7, vo-x1); read the totals, not one task.
 - **One known judge miss.** On vo-x4 under Sol the judge scored six findings 0 without opening
-  `findings.json` (1 of 22 trials across both runs). It stays: every run is graded the same way.
+  `findings.json`: the only such miss in all 44 trials of the two full runs (22 tasks each, the
+  12 public ones plus 10 private). It stays: every run is graded the same way.
 - The `-llm-judge` tasks have not been run yet.
 
 Per trial (recall, findings, tokens, cost): `research/results/team-evals-2026-10-12.csv`.
