@@ -28,7 +28,13 @@ def test_every_team_task_runs_the_seven_reviewers_then_the_validator():
         assert [s["name"] for s in steps] == [*TEAM, "validator"], task.name
 
 
+# The four scales the README documents, at their weights (they sum to 1).
+SCALES = {"known_issues": 0.30, "finding_validity": 0.25, "severity_and_fixes": 0.15,
+          "economic_value": 0.30}  # fmt: skip
+
+
 def test_every_llm_judge_task_scores_weighted_scales_summing_to_one():
+    assert abs(sum(SCALES.values()) - 1) < 1e-9
     """An -llm-judge task's grader rates 1-5 scales whose weights sum to 1, and gets the code."""
     judged = sorted((EVALS / "team-tasks").glob("*-llm-judge"))
     assert len(judged) == 6
@@ -36,6 +42,6 @@ def test_every_llm_judge_task_scores_weighted_scales_summing_to_one():
         tests = task / "steps" / "validator" / "tests"
         crit = tomllib.loads((tests / "rubric" / "review" / "judge.toml").read_text())["criterion"]
         assert all(c["type"] == "likert" and c["points"] == 5 for c in crit), task.name
-        assert abs(sum(c["weight"] for c in crit) - 1) < 1e-9, task.name
+        assert {c["name"]: c["weight"] for c in crit} == SCALES, task.name
         assert (tests / "workspace" / "known_issues.json").is_file(), task.name
         assert (tests / "workspace" / "repo.tar.gz").is_file(), task.name
