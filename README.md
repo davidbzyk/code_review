@@ -186,9 +186,32 @@ judge's cost is not included. Over the 12 public tasks:
 - **One known judge miss.** On vo-x4 under Sol the judge scored six findings 0 without opening
   `findings.json`: the only such miss in all 44 trials of the two full runs (22 tasks each, the
   12 public ones plus 10 private). It stays: every run is graded the same way.
-- The `-llm-judge` tasks have not been run yet.
 
 Per trial (recall, findings, tokens, cost): `research/results/team-evals-2026-10-12.csv`.
+
+**The `-llm-judge` tasks** (2026-10-13, one trial each, the team and the judge both on Codex with
+gpt-6-luna, medium). Each scale is the judge's 1-5 score; the reward is their weighted mean on
+0-1. Mean reward 0.41, at $0.24 per task for the review team.
+
+| Task | Reward | Known issues | Finding validity | Severity and fixes | Economic value |
+|---|---|---|---|---|---|
+| vo-x7 | 0.71 | 5 | 1 | 4 | 5 |
+| vo-t06 | 0.66 | 3 | 5 | 4 | 3 |
+| vo-t02 | 0.43 | 2 | 3 | 3 | 3 |
+| vo-t04 | 0.43 | 2 | 3 | 3 | 3 |
+| vo-t01 | 0.18 | 1 | 2 | 2 | 2 |
+| vo-x4 | 0.04 | 1 | 1 | 2 | 1 |
+
+- **The judge checks the code.** Its reasons name the functions behind each verdict (on vo-t04,
+  that the keychain write logs and returns while the save reports success), so a finding it
+  calls real has been read in the repository, not taken on trust.
+- **Requests for tests are not defects.** Findings that only ask for more tests score low on
+  validity: on vo-x7 the one known issue scores 5 and economic value 5, yet validity is 1
+  because the review's only other finding was a test request.
+- **These are new runs of the team**, not the reviews the recall grader scored above, so the
+  two graders are not compared on the same findings yet.
+
+Per trial: `research/results/llm-judge-2026-10-13.csv`.
 
 ### Run the evals yourself
 
@@ -230,7 +253,7 @@ Steps 1, 2 (the digest) and 4 work today; the rest is this version's work.
 
 Current version: v0.1 in progress. Model observations so far: gpt-6-luna leans to minor findings
 and padded summaries, and two runs on nearly the same change disagreed on the most serious finding.
-The first cross-model results are above; the `-llm-judge` tasks and more models are next.
+The first cross-model and `-llm-judge` results are above; more models are next.
 
 ## Sources and citations
 
