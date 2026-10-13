@@ -14,6 +14,10 @@ its own did as well as either context store, with nothing to build or serve. Thi
 holds the public voiceover cases and experiments; I also include the results from General
 Environments' own codebase, as it is a great example of rapid agentic engineering.
 
+**The first cross-model result.** On the 12 public eval tasks, gpt-6.1-sol (high) found about 1.7
+times as many of the known bugs as gpt-6-luna (medium), at about 19 times the cost per task ($4.65
+against $0.24, API-equivalent). The numbers are under [Results so far](#results-so-far).
+
 **The comparison.** Several commercial reviewers were turned on here next to the repository's own
 review action, but only two of them reviewed its pull requests: CodeRabbit (60 comments across 18
 pull requests) and GitHub Copilot (17). Codex, Greptile, Gravity, Devin and Sonar posted nothing, so
@@ -102,7 +106,8 @@ scripts rather than committed.
 ## The CI action: add the review to your project
 
 Every pull request gets reviewed by the seven-reviewer team on a GitHub runner, and the findings are
-posted as one review with inline comments plus a summary that updates on each push.
+posted as one review with inline comments plus a summary that updates on each push. A review takes
+2 to 6 minutes here (median 3.5 over the last ten runs).
 
 1. **Install it into your repository** (from a checkout of this one):
 
@@ -183,6 +188,24 @@ judge's cost is not included. Over the 12 public tasks:
 - The `-llm-judge` tasks have not been run yet.
 
 Per trial (recall, findings, tokens, cost): `research/results/team-evals-2026-10-12.csv`.
+
+### Run the evals yourself
+
+In General Environments, import this repository: every task folder under `evals/` becomes part of
+one benchmark, and the run picks the agent, model and judge. With Harbor directly:
+
+    export REWARDKIT_JUDGE=codex REWARDKIT_MODEL=gpt-6-luna \
+        CODEX_AUTH_JSON="$(cat ~/.codex/auth.json)"
+    harbor run -y -p evals/team-tasks/vo-x7 -a codex -m openai/gpt-6-luna \
+        --ak reasoning_effort=medium --ae CODEX_AUTH_JSON_PATH=$HOME/.codex/auth.json
+
+A team task runs eight agent sessions, so a full sweep adds up quickly. To start cheaply, take
+the six tasks chosen for content and spread of size: vo-x7 and vo-x4 (one clear bug in a small
+change), vo-t06 (frontend lifecycle bugs), vo-t01 (blocking calls and unchecked input in a
+backend), vo-t04 (a broken path allowlist and a secrets migration) and vo-t02 (the security
+showcase: path traversal, unsafe pickle loading, SSRF). Each also has an `-llm-judge` version.
+A judge from another model family than the agent is the safer choice; the results above used the
+same family for both.
 
 The loop this repository is building toward:
 
