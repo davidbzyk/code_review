@@ -1,6 +1,6 @@
 The skills are installed in: /opt/review-skills
 Use the review-tests skill. You are the `tests` reviewer.
-Review the change between git refs 95142b184077306b75e5957c0462c00e40a86e0b and 35892f2d11ed26e6830b20cae8125cbc25287a9d in the repository in /workspace/repo.
+Review the change between git refs 3f2a14268a65847b7cc5a8961eb7fb8a4bf575b1 and 9afeb65d8f0b0262250a7e8a11f146f4bf0e1eb1 in the repository in /workspace/repo.
 Write your findings to /workspace/review/findings.tests.json. Write no other file and do not edit the repository.
 Before anything else, print your skill file on its own, in a command that prints nothing else, and read it to its last line.
 It is long. If the output says it was truncated or stops early, print the missing lines by line range until you have read all of it.

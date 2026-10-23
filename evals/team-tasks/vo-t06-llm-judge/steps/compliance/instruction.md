@@ -1,6 +1,6 @@
 The skills are installed in: /opt/review-skills
 Use the review-compliance skill. You are the `compliance` reviewer.
-Review the change between git refs 12998e404b8d505056221802db4756d39adbd5a0 and b27e76080c69c9fe7eb127e1db7f1f9ae692088a in the repository in /workspace/repo.
+Review the change between git refs d47ca8270bc57385662f40f0c12f83f92b572c96 and d9677189b6880ce609fd32f9132b8fc965fac999 in the repository in /workspace/repo.
 Write your findings to /workspace/review/findings.compliance.json. Write no other file and do not edit the repository.
 Before anything else, print your skill file on its own, in a command that prints nothing else, and read it to its last line.
 It is long. If the output says it was truncated or stops early, print the missing lines by line range until you have read all of it.

@@ -1,2 +1,2 @@
 The skills are installed in: /opt/review-skills
-Use the review-validator skill. The output folder is /workspace/review. The base ref is ae7315cffaf8c190c80dc6c3288f4d14c0d6ac4e.
+Use the review-validator skill. The output folder is /workspace/review. The base ref is 097979928cd0a5376e81f2129cf81d50d425a70d.

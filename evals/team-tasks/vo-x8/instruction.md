@@ -2,8 +2,8 @@
 
 This is a multi-step task. Each agent reads only its own step's `instruction.md`.
 
-The git repository at `/workspace/repo` holds the change: `d5d5f00f761c3ba95294d72aae04380d7b91ba80` (base) and
-`cdac7cc610b5f82199f8d6773921842f92c674b6` (head). What the change is meant to do:
+The git repository at `/workspace/repo` holds the change: `ea652265cd8db98f0a52d601325af6de837357b9` (base) and
+`5794f727be0b1a2474ac9659058a5efae840a94c` (head). What the change is meant to do:
 
 The change makes the Drive link on the preview page open through a button and adjusts video encoding for odd dimensions. The link opens through the shell plugin in the desktop app and in a new tab in the browser, with matching styles. The two commands that re-encode video now pad width and height up to even numbers, and the notes folder is added to gitignore.
 

@@ -1,6 +1,6 @@
 The skills are installed in: /opt/review-skills
 Use the review-correctness skill. You are the `correctness` reviewer.
-Review the change between git refs a6a844f9815f8c2ce9d6dff6ac76e596ba2e0a11 and b8cbb3891ad04bb2f740a419ed002ee97ef3ea08 in the repository in /workspace/repo.
+Review the change between git refs 21d799db2caf42be15514065780e0faadaae83d9 and bb090a4a9bf3951afa70d85e4bb727948eeba754 in the repository in /workspace/repo.
 Write your findings to /workspace/review/findings.correctness.json. Write no other file and do not edit the repository.
 Before anything else, print your skill file on its own, in a command that prints nothing else, and read it to its last line.
 It is long. If the output says it was truncated or stops early, print the missing lines by line range until you have read all of it.

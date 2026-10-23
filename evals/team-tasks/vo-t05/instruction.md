@@ -2,8 +2,8 @@
 
 This is a multi-step task. Each agent reads only its own step's `instruction.md`.
 
-The git repository at `/workspace/repo` holds the change: `ae7315cffaf8c190c80dc6c3288f4d14c0d6ac4e` (base) and
-`6e16cfae8882cba5ba1f59edb4d434c74513185a` (head). What the change is meant to do:
+The git repository at `/workspace/repo` holds the change: `097979928cd0a5376e81f2129cf81d50d425a70d` (base) and
+`471de15e63ce9030beee4560c38a9fc45c7d9837` (head). What the change is meant to do:
 
 The change adds a Library screen and a sidebar layout for browsing past recordings. The Rust backend lists recordings with sizes, dates, thumbnails and metadata, and offers commands to generate thumbnails, delete, open and reveal files; the pipeline and Drive upload write a companion metadata file with voice and share-link details. Existing pages move under a shared layout with a sidebar and status bar, and the main window is made wider.
 
