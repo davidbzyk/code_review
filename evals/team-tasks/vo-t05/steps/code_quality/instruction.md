@@ -1,6 +1,6 @@
 The skills are installed in: /opt/review-skills
 Use the review-code-quality skill. You are the `code_quality` reviewer.
-Review the change between git refs ae7315cffaf8c190c80dc6c3288f4d14c0d6ac4e and 6e16cfae8882cba5ba1f59edb4d434c74513185a in the repository in /workspace/repo.
+Review the change between git refs 097979928cd0a5376e81f2129cf81d50d425a70d and 471de15e63ce9030beee4560c38a9fc45c7d9837 in the repository in /workspace/repo.
 Write your findings to /workspace/review/findings.code_quality.json. Write no other file and do not edit the repository.
 Before anything else, print your skill file on its own, in a command that prints nothing else, and read it to its last line.
 It is long. If the output says it was truncated or stops early, print the missing lines by line range until you have read all of it.

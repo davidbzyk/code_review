@@ -2,8 +2,8 @@
 
 This is a multi-step task. Each agent reads only its own step's `instruction.md`.
 
-The git repository at `/workspace/repo` holds the change: `a6a844f9815f8c2ce9d6dff6ac76e596ba2e0a11` (base) and
-`b8cbb3891ad04bb2f740a419ed002ee97ef3ea08` (head). What the change is meant to do:
+The git repository at `/workspace/repo` holds the change: `21d799db2caf42be15514065780e0faadaae83d9` (base) and
+`bb090a4a9bf3951afa70d85e4bb727948eeba754` (head). What the change is meant to do:
 
 The change reorganises sidecar HTTP and generation code and routes generated audio through the desktop backend. The Rust side registers one shared HTTP client with per-request timeouts, adds a command that returns generated audio bytes, validates generation ids and waits for sidecar startup by notification instead of polling. The Python server moves generation and voice conversion into separate functions run by the queue, and common page styles move into the global stylesheet. The content security policy no longer allows media from localhost.
 

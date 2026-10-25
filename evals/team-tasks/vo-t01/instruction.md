@@ -2,8 +2,8 @@
 
 This is a multi-step task. Each agent reads only its own step's `instruction.md`.
 
-The git repository at `/workspace/repo` holds the change: `aa9931fa0eb907c9b622e3faed1a41bed241aa3f` (base) and
-`e6c05ff08b755f3e74c9065d036dede7fb5f2158` (head). What the change is meant to do:
+The git repository at `/workspace/repo` holds the change: `f280a86d34b0121cfd84e0815d6fdafa61f10337` (base) and
+`c06bf86bd436dda60bee4c2b69f88f21b39f1ba6` (head). What the change is meant to do:
 
 The change adds a Models page for managing local speech models and lets users choose which transcription model the voice pipeline uses. The sidecar gains a registry of named models with categories and recommendations, per-model download status, a delete endpoint, and a transcription model selectable per request. The settings and create-voice screens check only the models needed for the current local mode, and a new config field stores the chosen transcription model.
 

@@ -5,4 +5,4 @@
 set -euo pipefail
 rm -f -- "$0"
 cd /workspace/repo
-python3 /opt/review-skills/review-orchestrator/scripts/aggregate.py first-pass --out /workspace/review --repo . --base b957febf3680dbc91ad08b67333b1ff649f997d5 --head 3a0594941a1ae4200d6d532be5ae1a99b58f0201
+python3 /opt/review-skills/review-orchestrator/scripts/aggregate.py first-pass --out /workspace/review --repo . --base 966a2d8778fe9a9cadf11431478349771365820f --head 02b02c9de77c22a11c5e804064acffaf3c326fed

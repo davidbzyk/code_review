@@ -1,6 +1,6 @@
 The skills are installed in: /opt/review-skills
 Use the review-language skill. You are the `language` reviewer.
-Review the change between git refs 748d85a9a8cd04b0d38039ddd2489363d3971528 and a66bd3b1e89d8e4d07d8991caa9f41f00a952f28 in the repository in /workspace/repo.
+Review the change between git refs 1c236b38a1908ac0957466bbbb94dcedfed3ce20 and 4e456c8999479b805aaa7bedec6a0a25327bb481 in the repository in /workspace/repo.
 Write your findings to /workspace/review/findings.language.json. Write no other file and do not edit the repository.
 Before anything else, print your skill file on its own, in a command that prints nothing else, and read it to its last line.
 It is long. If the output says it was truncated or stops early, print the missing lines by line range until you have read all of it.

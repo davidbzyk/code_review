@@ -2,8 +2,8 @@
 
 This is a multi-step task. Each agent reads only its own step's `instruction.md`.
 
-The git repository at `/workspace/repo` holds the change: `12cf2440862b1d9b3d5221eedfe30161279aba17` (base) and
-`6d2d586d7ab769f5c27e8b48fa817687b265ac28` (head). What the change is meant to do:
+The git repository at `/workspace/repo` holds the change: `02ac4d2949831e10616c378437beaf866f626f26` (base) and
+`1300764111acc28a5c4b093d6577116392173f88` (head). What the change is meant to do:
 
 The change adds a session-id check to the recording commands, an expiry timestamp for Drive tokens, a timeout on the Drive sign-in callback, async video-tool calls and a content security policy in the window config. The frontend shares one environment-detection helper instead of local copies, sends recording chunks as byte arrays, listens for widget stop and cancel events on the home page and refreshes expired Drive tokens before upload. It removes two unused Rust dependencies and blanks credentials in the config file synced to the static folder.
 
