@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "reviewer": "language",
+  "findings": [
+    {
+      "file": "packages/ge-core/src/ge_core/adapters/aws_batch_runner.py",
+      "line_start": 301,
+      "line_end": 303,
+      "side": "new",
+      "quote": "        references = list(self._original_images.values())\n        if len({repository_of(reference) for reference in references}) != 1:\n            raise ValueError(\"AWS runner regions must share a runner image repository\")",
+      "title": "Exclude disabled AWS regions when selecting the runner repository",
+      "description": "`_original_images` is populated from all configured regions, but this property checks every value even though disabled regions are omitted from `self.regions`. The AWS estate output uses an empty `runner_image` for disabled regions, and the configuration exporter can retain those region entries. When an active region needs image preparation, that empty reference adds an empty repository to this set and raises `ValueError`; the worker turns it into a terminal preparation failure before allocating capacity, so an otherwise repairable AWS launch fails.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": null
+    }
+  ]
+}

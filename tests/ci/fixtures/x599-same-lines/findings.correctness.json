@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "reviewer": "correctness",
+  "findings": [
+    {
+      "file": "packages/ge-core/src/ge_core/adapters/aws_batch_runner.py",
+      "line_start": 301,
+      "line_end": 303,
+      "side": "new",
+      "quote": "        references = list(self._original_images.values())\n        if len({repository_of(reference) for reference in references}) != 1:\n            raise ValueError(\"AWS runner regions must share a runner image repository\")",
+      "title": "Multi-region AWS jobs fail when runner repositories differ",
+      "description": "A valid AWS estate can pin each region to its own Artifact Registry subrepository; the existing AWS configuration accepts images anywhere under its central registry root. This guard raises before the preparation workflow starts, and the worker converts that ValueError into a permanent `runner_image_preparation_failed` result, so jobs in that estate fail during a runner-toolchain rollout.",
+      "severity": "P1",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": null
+    }
+  ]
+}
