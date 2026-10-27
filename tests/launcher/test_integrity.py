@@ -56,12 +56,12 @@ def test_reviewer_file_holding_another_reviewers_finding_is_malformed(run):
     assert result.status == "partial"
 
 
-def test_two_reviewers_reporting_the_same_lines_become_one_finding_crediting_both(run):
+def test_two_reviewers_reporting_the_same_lines_keep_both_findings_each_naming_the_other(run):
     result = run("collision")
-    assert len(result.findings) == 6
-    (merged,) = [f for f in result.findings if f.quote == "x = security"]
-    assert {merged.reviewer, *merged.also_raised_by} == {"correctness", "security"}
-    assert result.document["envelope"]["dropped"]["duplicate"] == 1
+    assert len(result.findings) == 7
+    shared = {f.reviewer: f.also_raised_by for f in result.findings if f.quote == "x = security"}
+    assert shared == {"correctness": ("security",), "security": ("correctness",)}
+    assert result.document["envelope"]["dropped"]["duplicate"] == 0
 
 
 def test_a_finding_is_placed_where_its_quote_is_not_where_it_claims(run):

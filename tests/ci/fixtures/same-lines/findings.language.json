@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "reviewer": "language",
+  "findings": [
+    {
+      "file": "app/images.py",
+      "line_start": 301,
+      "line_end": 303,
+      "side": "new",
+      "quote": "        names = list(self._mirrors.values())\n        if len({host_of(name) for name in names}) != 1:\n            raise ValueError(\"mirrors must share one image host\")",
+      "title": "Skip disabled mirrors when choosing the image host",
+      "description": "`_mirrors` holds every configured mirror, but disabled ones are never used, so a disabled mirror on another host still trips the check.",
+      "severity": "P2",
+      "confidence": 100,
+      "category": "language",
+      "reviewer": "language",
+      "scope": "in_diff",
+      "fingerprint": null
+    }
+  ]
+}
