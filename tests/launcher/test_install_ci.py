@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -343,6 +344,63 @@ def test_the_workflow_reviews_the_pr_head_skips_dependabot_by_author_and_reruns_
     assert "github.actor" not in text
     assert "types: [opened, synchronize, reopened, ready_for_review, edited]" in text
     assert "(github.event.action != 'edited' || github.event.changes.base)" in text
+
+
+def _concurrency_group(github):
+    """Evaluate the workflow's `concurrency.group` for a github context; `${{ }}` becomes Python."""
+
+    class Ctx:
+        """A nested event payload where a missing key reads as null, like GitHub's contexts."""
+
+        def __init__(self, data):
+            self._data = data
+
+        def __getattr__(self, name):
+            value = self._data.get(name)
+            return Ctx(value) if isinstance(value, dict) else value
+
+    text = (ROOT / "action" / "workflow.yml").read_text()
+    group = re.search(r"^  group: (.+)$", text, re.M).group(1)
+
+    def part(match):
+        py = match.group(1).replace("&&", " and ").replace("||", " or ")
+        py = re.sub(r"!(?!=)", " not ", py)
+        scope = {"github": Ctx(github), "format": lambda template, *a: template.format(*a)}
+        return str(eval(py, {"__builtins__": {}}, scope))  # noqa: S307 - our own workflow text
+
+    return re.sub(r"\$\{\{(.+?)\}\}", part, group)
+
+
+def _group(action, changes=None, run_id=1):
+    """The group for a pull_request event of this action; edits carry GitHub's `changes`."""
+    event = {"action": action, "pull_request": {"number": 7}}
+    if changes is not None:
+        event["changes"] = changes
+    return _concurrency_group({"event": event, "run_id": run_id})
+
+
+def test_a_title_or_body_edit_never_shares_the_running_reviews_group():
+    pushed = _group("synchronize")
+    assert pushed == "code-review-7"
+    for changes in ({"title": {"from": "old"}}, {"body": {"from": "old"}}):
+        edit = _group("edited", changes, run_id=11)
+        assert edit != pushed and edit == "code-review-7-edit-11"
+        assert edit != _group("edited", changes, run_id=12)  # edits do not cancel each other
+
+
+def test_a_base_change_edit_shares_the_push_group_and_replaces_the_stale_run():
+    assert _group("edited", {"base": {"ref": {"from": "main"}}}, run_id=11) == _group("synchronize")
+    for action in ("opened", "reopened", "ready_for_review"):
+        assert _group(action) == "code-review-7"
+    assert "cancel-in-progress: true" in (ROOT / "action" / "workflow.yml").read_text()
+
+
+def test_the_workflow_carries_the_model_and_max_effort_so_a_reinstall_keeps_them(workdir):
+    text = (ROOT / "action" / "workflow.yml").read_text()
+    assert "model: ${{ vars.CODE_REVIEW_MODEL || 'gpt-6-luna' }}" in text
+    assert "effort: ${{ vars.CODE_REVIEW_EFFORT || 'max' }}" in text
+    bundle.install(workdir)
+    assert (workdir / ".github" / "workflows" / "code-review.yml").read_text() == text
 
 
 def test_run_review_sh_hands_the_reviewers_the_earlier_review_and_reads_it_with_the_token(

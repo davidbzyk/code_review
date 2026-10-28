@@ -11,7 +11,9 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: code-review-${{ github.event.pull_request.number }}
+  # A title or body edit gets its own group so it cannot cancel a running review; a push or a
+  # base change shares the pull request's group and replaces the stale run.
+  group: code-review-${{ github.event.pull_request.number }}${{ github.event.action == 'edited' && !github.event.changes.base && format('-edit-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 jobs:
@@ -39,6 +41,9 @@ jobs:
       - uses: ./.code-review
         with:
           auth: ${{ vars.CODE_REVIEW_AUTH || 'subscription' }}
+          # Codex effort runs minimal to ultra; max is this reviewer's standard. Variables override.
+          model: ${{ vars.CODE_REVIEW_MODEL || 'gpt-6-luna' }}
+          effort: ${{ vars.CODE_REVIEW_EFFORT || 'max' }}
           codex-auth-json-b64: ${{ secrets.CODEX_AUTH_JSON_B64 }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           github-token: ${{ github.token }}
