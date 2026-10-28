@@ -119,7 +119,7 @@ def test_validator_input_holds_only_p0_and_p1_with_the_listed_fields(tmp_path):
     }  # fmt: skip
     assert item["severity"] == "P1"
     # The claimed range was 5-6; the quote is one line, so the finding's lines are the quote's.
-    assert item["id"] == f"{item['fingerprint']}:5-5"
+    assert item["id"] == f"{item['fingerprint']}:5-5:security"
 
 
 def test_validator_declining_a_finding_removes_it_and_records_the_reason(tmp_path):
@@ -233,14 +233,14 @@ def test_every_dropped_finding_is_counted_under_exactly_one_reason(tmp_path):
     assert len(cand["findings"]) + sum(cand["dropped"].values()) == total
     assert len(cand["dropped_detail"]) == sum(cand["dropped"].values())
     assert cand["dropped"] == {
-        "quote_gate": 1, "confidence_floor": 1, "duplicate": 2, "validator_declined": 0,
+        "quote_gate": 1, "confidence_floor": 1, "duplicate": 0, "validator_declined": 0,
         "out_of_snapshot": 1, "malformed": 1,
     }  # fmt: skip
     assert finalize(out) == 0
     assert load(out, "findings.json")["envelope"]["dropped"] == cand["dropped"]
 
 
-def test_aggregated_list_has_no_pair_within_the_window(tmp_path):
+def test_every_finding_is_kept_and_names_only_the_others_within_the_window(tmp_path):
     def spaced(reviewer, i):
         n = 4 + 7 * (i % 4)  # reviewers overlap on four spots
         return f(reviewer, line_start=n, line_end=n + 1, quote=f"line {n}")
@@ -248,10 +248,11 @@ def test_aggregated_list_has_no_pair_within_the_window(tmp_path):
     repo, out = setup(tmp_path, all_seven(spaced))
     first_pass(tmp_path, out, repo, "--window", "3")
     kept = load(out, "candidates.json")["findings"]
-    spans = sorted((x["line_start"], x["line_end"]) for x in kept)
-    assert len(spans) == 4
-    assert all(b[0] - a[1] > 3 for a, b in zip(spans, spans[1:], strict=False))
-    assert load(out, "candidates.json")["dropped"]["duplicate"] == 3
+    assert len(kept) == 7
+    assert load(out, "candidates.json")["dropped"]["duplicate"] == 0
+    for x in kept:
+        spot = {y["reviewer"] for y in kept if y["line_start"] == x["line_start"]}
+        assert x["also_raised_by"] == sorted(spot - {x["reviewer"]})
 
 
 def test_errors_are_one_line_on_stderr_with_a_non_zero_exit(tmp_path, capsys):

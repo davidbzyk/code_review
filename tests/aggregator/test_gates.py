@@ -3,7 +3,7 @@
 import subprocess
 
 from review_core.aggregator import gates
-from review_core.aggregator.confidence import passes_floor, severity_rank
+from review_core.aggregator.confidence import passes_floor
 
 from .conftest import make_finding as f
 from .conftest import make_repo
@@ -37,10 +37,6 @@ def test_ref_check_accepts_a_commit_and_rejects_unknown_or_option_like_refs(tmp_
 def test_confidence_floor_is_inclusive():
     assert passes_floor(f(confidence=50), 50)
     assert not passes_floor(f(confidence=25), 50)
-
-
-def test_severity_order_puts_p0_first():
-    assert severity_rank("P0") < severity_rank("P1") < severity_rank("P2") < severity_rank("P3")
 
 
 def test_unsafe_path_never_reaches_git(tmp_path, monkeypatch):

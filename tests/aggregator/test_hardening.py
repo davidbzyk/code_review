@@ -4,7 +4,7 @@ import json
 
 from review_core.aggregator import gates
 from review_core.aggregator.cli import main
-from review_core.aggregator.dedup import dedup
+from review_core.aggregator.dedup import group_by_place
 
 from .conftest import make_finding as f
 from .conftest import make_repo, write_reviewer
@@ -27,7 +27,8 @@ def run_both(tmp_path, by_reviewer, verdict_for):
     assert main(["first-pass", *args]) == 0
     candidates = json.loads((out / "candidates.json").read_text())["findings"]
     for item in candidates:
-        item["id"] = f"{item['fingerprint']}:{item['line_start']}-{item['line_end']}"
+        lines = f"{item['line_start']}-{item['line_end']}"
+        item["id"] = f"{item['fingerprint']}:{lines}:{item['reviewer']}"
     (out / "validation.json").write_text(json.dumps({"verdicts": verdict_for(candidates)}))
     code = main(["finalize", "--out", str(out), *META])
     return out, code
@@ -95,8 +96,7 @@ def test_a_finding_claiming_a_huge_range_does_not_swallow_its_neighbours():
     wide = f("security", line_start=1, line_end=500, severity="P3")
     inside = f("tests", line_start=200, line_end=200, severity="P1")
     later = f("correctness", line_start=400, line_end=401, severity="P2")
-    kept, removed = dedup([wide, inside, later], window=3)
-    assert removed == []
+    kept = group_by_place([wide, inside, later], window=3)
     assert sorted(k["reviewer"] for k in kept) == ["correctness", "security", "tests"]
     assert all(k["also_raised_by"] == [] for k in kept)
 
@@ -114,13 +114,15 @@ def test_a_verdict_whose_id_fits_two_candidates_declines_neither():
     # Findings over the span limit are never merged, so two can share lines and a fingerprint.
     from review_core.aggregator.validate import apply_verdicts, verdict_id
 
-    twin = {"fingerprint": "a" * 64, "line_start": 1, "line_end": 90, "severity": "P1"}
-    a, b = {**twin, "reviewer": "security"}, {**twin, "reviewer": "tests"}
+    # The id carries the reviewer, so only one reviewer's two findings can share one.
+    twin = {"fingerprint": "a" * 64, "line_start": 1, "line_end": 90, "severity": "P1",
+            "reviewer": "security"}  # fmt: skip
+    a, b = {**twin, "title": "one"}, {**twin, "title": "two"}
     alone = {**twin, "reviewer": "language", "line_start": 200, "line_end": 201}
     rows = {verdict_id(x): {"id": verdict_id(x), "verdict": "declined", "reason": "no"}
             for x in (a, alone)}  # fmt: skip
     kept, declined = apply_verdicts([a, b, alone], rows)
-    assert [k["reviewer"] for k in kept] == ["security", "tests"]
+    assert [k["title"] for k in kept] == ["one", "two"]
     assert [d["reviewer"] for d in declined] == ["language"]
 
 

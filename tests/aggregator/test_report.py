@@ -111,15 +111,17 @@ def test_counts_table_has_every_category_and_totals(tmp_path):
     assert rows[-1] == "| Total | 1 | 1 | 2 | 1 | 5 |"
 
 
-def test_a_finding_raised_by_three_reviewers_lists_all_three(tmp_path):
+def test_three_reviewers_on_one_line_each_keep_a_finding_naming_the_other_two(tmp_path):
     same = {r: [line(5, r, title="Shared")] for r in ("security", "correctness", "tests")}
     doc = run_doc(tmp_path, same)
-    assert len(doc["findings"]) == 1
+    assert len(doc["findings"]) == 3
     text = render_report(doc, None)
-    raised = [x for x in text.split("\n") if x.startswith("- Raised by:")]
-    assert len(raised) == 1
-    for name in ("security", "correctness", "tests"):
-        assert name in raised[0]
+    raised = sorted(x for x in text.split("\n") if x.startswith("- Raised by:"))
+    assert raised == [
+        "- Raised by: correctness (also on these lines: security, tests)",
+        "- Raised by: security (also on these lines: tests, correctness)",
+        "- Raised by: tests (also on these lines: security, correctness)",
+    ]
 
 
 def test_empty_run_says_so(tmp_path):

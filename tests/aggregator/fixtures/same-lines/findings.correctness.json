@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "reviewer": "correctness",
+  "findings": [
+    {
+      "file": "app/images.py",
+      "line_start": 301,
+      "line_end": 303,
+      "side": "new",
+      "quote": "        names = list(self._mirrors.values())\n        if len({host_of(name) for name in names}) != 1:\n            raise ValueError(\"mirrors must share one image host\")",
+      "title": "Mirrors on different hosts fail every job",
+      "description": "A valid setup can give each mirror its own host, but this check refuses any setup whose mirrors differ, so every job fails before it starts.",
+      "severity": "P1",
+      "confidence": 75,
+      "category": "correctness",
+      "reviewer": "correctness",
+      "scope": "in_diff",
+      "fingerprint": null
+    }
+  ]
+}

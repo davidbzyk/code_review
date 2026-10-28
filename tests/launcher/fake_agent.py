@@ -42,10 +42,11 @@ def finding(reviewer: str, **overrides) -> dict:
 
 
 def verdict_id(item: dict) -> str:
-    """The id a verdict uses, spelled out: sha256 of file, side and quote lines, then the lines."""
+    """The id a verdict uses, spelled out: sha256 of file, side and quote lines, the lines, then
+    the reviewer, as validator-input.json names each finding."""
     parts = [item["file"], item["side"], *(line.strip() for line in item["quote"].splitlines())]
     digest = hashlib.sha256("\n".join(parts).encode()).hexdigest()
-    return f"{digest}:{item['line_start']}-{item['line_end']}"
+    return f"{digest}:{item['line_start']}-{item['line_end']}:{item['reviewer']}"
 
 
 def write_findings(out: Path, reviewer: str, findings: list[dict]) -> None:
