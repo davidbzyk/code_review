@@ -98,7 +98,7 @@ def test_a_decline_names_one_of_two_findings_on_the_same_lines(same_lines):
 
 
 def test_a_declined_finding_is_not_named_beside_the_one_kept(same_lines):
-    """GE PR 1239: grouping ran before the verdicts, so the kept correctness finding still named
+    """Grouping used to run before the verdicts, so the kept correctness finding still named
     the declined language reviewer as also on its lines, in findings.json and a rebuild."""
     out, repo, base, head = same_lines
     _decline_language(out, repo, base, head)

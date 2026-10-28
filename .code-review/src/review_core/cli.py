@@ -35,8 +35,8 @@ def agent_errors(run_dir: Path, secrets: list[str] | None = None, tail: int = 5)
         message = ""
         if event.get("type") == "error":
             message = str(event.get("message", ""))
-        # Review (PR 1238), shown not to occur: a string `error` here would raise, but Codex
-        # 0.161.0 writes it as an object, as run 40588745870's events show.
+        # Review, shown not to occur: a string `error` here would raise, but Codex 0.161.0
+        # writes a `turn.failed` error as an object.
         elif event.get("type") == "turn.failed":
             message = str((event.get("error") or {}).get("message", ""))
         if message.strip():
