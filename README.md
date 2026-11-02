@@ -26,11 +26,13 @@ the side-by-side on these pull requests is CodeRabbit, Copilot and the review ac
 **The design.** I went through all my code and security review plugins and kept what I thought
 was valuable from each; every reviewer cites its sources in its own folder (see the last section).
 
-The full write-up will be a Medium article *(link when published)* that compares and evaluates:
-this repository's evals are imported into General Environments and run across models and harnesses,
-for review quality and for cost. Running every task on every model proved expensive, so part of the
-work is finding the most economically viable set of tasks and models. The article also covers a
-larger, more complex codebase (General Environments itself). This README is its summary.
+The full write-up is on the General Environments blog:
+[Incorporating Evaluations and Refinement Loops for Non-Regressive Agentic Workflows](https://general-environments.ai/blog/evaluation-refinement-loops/).
+It compares and evaluates: this repository's evals are imported into General Environments and run
+across models and harnesses, for review quality and for cost. Running every task on every model
+proved expensive, so part of the work is finding the most economically viable set of tasks and
+models. The post also covers a larger, more complex codebase (General Environments itself). This
+README is its summary.
 
 ## What is in this repository
 
