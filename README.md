@@ -1,8 +1,8 @@
 # Code Review Workflow
 
 This is both a research experiment into the most effective way to build a custom code review, and
-an example workflow for my business, [General Environments](https://general-environments.ai/).
-General Environments is a community-based benchmarking and agentic evaluation platform. It has
+an example workflow for my business, [Standard Environments](https://standardenvs.com/).
+Standard Environments is a community-based benchmarking and agentic evaluation platform. It has
 253 open-source benchmarks: you can fork one to create your own, import your own to evaluate it
 quickly across harnesses and models, or work with an expert to build the right agentic workflow
 and evaluation set for your business.
@@ -26,12 +26,12 @@ the side-by-side on these pull requests is CodeRabbit, Copilot and the review ac
 **The design.** I went through all my code and security review plugins and kept what I thought
 was valuable from each; every reviewer cites its sources in its own folder (see the last section).
 
-The full write-up is on the General Environments blog:
-[Incorporating Evaluations and Refinement Loops for Non-Regressive Agentic Workflows](https://general-environments.ai/blog/evaluation-refinement-loops/).
-It compares and evaluates: this repository's evals are imported into General Environments and run
+The full write-up is on the Standard Environments blog:
+[Incorporating Evaluations and Refinement Loops for Non-Regressive Agentic Workflows](https://standardenvs.com/blog/evaluation-refinement-loops/).
+It compares and evaluates: this repository's evals are imported into Standard Environments and run
 across models and harnesses, for review quality and for cost. Running every task on every model
 proved expensive, so part of the work is finding the most economically viable set of tasks and
-models. The post also covers a larger, more complex codebase (General Environments itself). This
+models. The post also covers a larger, more complex codebase (Standard Environments itself). This
 README is its summary.
 
 ## What is in this repository
@@ -134,7 +134,7 @@ on the pull request. A finding someone resolved, or answered with a reply (fixed
 raised again unless the lines it names change; one left open keeps counting in the summary. Replies
 reach the reviewers only from people who can push to the repository, checked with the workflow's own
 `GITHUB_TOKEN`, so there is no extra token or GitHub App to set up; a reply from a read or triage
-collaborator is ignored. On a nine-commit pull request in General Environments, six findings it
+collaborator is ignored. On a nine-commit pull request in Standard Environments, six findings it
 raised were answered once and never came back across the five reviews that followed.
 
 To update, run the installer again; never edit `.code-review/` by hand. Model, effort, title and
@@ -217,7 +217,7 @@ Per trial: `research/results/llm-judge-2026-10-13.csv`.
 
 ### Run the evals yourself
 
-In General Environments, import this repository: every task folder under `evals/` becomes part of
+In Standard Environments, import this repository: every task folder under `evals/` becomes part of
 one benchmark, and the run picks the agent, model and judge. With Harbor directly:
 
     export REWARDKIT_JUDGE=codex REWARDKIT_MODEL=gpt-6-luna \
