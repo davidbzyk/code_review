@@ -11,7 +11,7 @@ and evaluation set for your business.
 `gpt-6-luna`), given one of three kinds of context: a graphed OKF knowledge base, a vector search
 index, or nothing but the code itself (plain). In short, letting the model search the codebase on
 its own did as well as either context store, with nothing to build or serve. This repository
-holds the public voiceover cases and experiments; I also include the results from General
+holds the public voiceover cases and experiments; I also include the results from Standard
 Environments' own codebase, as it is a great example of rapid agentic engineering.
 
 **The first cross-model result.** On the 12 public eval tasks, gpt-6.1-sol (high) found about 1.7
@@ -52,7 +52,7 @@ with reading the code alone (**plain**)?
 **Setup.**
 - Seven reviewers per review, each its own agent, plus a validator for serious findings.
   Model gpt-6-luna, reasoning effort high, Codex CLI.
-- Ground truth: 28 real merged pull requests from one private Python monorepo (General
+- Ground truth: 28 real merged pull requests from one private Python monorepo (Standard
   Environments' own). The "golden" issues are the comments six paid review bots left that the
   owner accepted: 111 in all.
 - Judge: an LLM judge following the Martian Code Review Bench method (does a finding state "the
